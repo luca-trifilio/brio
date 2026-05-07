@@ -7,15 +7,10 @@ import (
 	"testing"
 )
 
-// TestCorpus walks real Bruno collections (when available on the dev machine)
-// and asserts every `.bru` file parses without error. Build mirrors are
-// skipped to avoid double-counting.
+// TestCorpus walks the bundled testdata Bruno collection and asserts every
+// `.bru` file parses without error.
 func TestCorpus(t *testing.T) {
-	roots := []string{
-		"/Users/luca.trifilio/Progetti/bck_transaction/src/main/resources/api",
-		"/Users/luca.trifilio/Progetti/bck_notification/src/main/resources/api",
-		"/Users/luca.trifilio/Progetti/bck_material/core/core1/collections/satispay-api",
-	}
+	roots := []string{filepath.Join("..", "testdata", "collection")}
 
 	skipSegments := []string{
 		string(os.PathSeparator) + "bin" + string(os.PathSeparator),
@@ -23,10 +18,7 @@ func TestCorpus(t *testing.T) {
 		string(os.PathSeparator) + "node_modules" + string(os.PathSeparator),
 	}
 
-	var (
-		total int
-		fails int
-	)
+	var total, fails int
 
 	for _, root := range roots {
 		if _, err := os.Stat(root); err != nil {
@@ -61,7 +53,7 @@ func TestCorpus(t *testing.T) {
 	}
 
 	if total == 0 {
-		t.Skip("no corpus available — install bck_transaction/bck_notification/bck_material to run this test")
+		t.Fatal("no .bru files found — testdata fixture may be missing")
 	}
 	t.Logf("parsed %d .bru files, %d failures", total, fails)
 }

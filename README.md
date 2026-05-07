@@ -14,7 +14,7 @@
 
 ---
 
-brio reads your `.bru` files directly from disk, executes HTTP requests with full variable interpolation and AWS SigV4 signing, and handles Satispay breakglass credential refresh automatically — all from the terminal.
+brio reads your `.bru` files directly from disk, executes HTTP requests with full variable interpolation and AWS SigV4 signing, and supports configurable credential-refresh hooks — all from the terminal.
 
 > **Read-only by design.** brio never writes to your `.bru` files.
 
@@ -26,7 +26,7 @@ brio reads your `.bru` files directly from disk, executes HTTP requests with ful
 - **Multi-collection** — open several Bruno collections side by side in one session
 - **Full variable interpolation** — layered scope: collection → environment → folder chain → request → runtime overrides, with cycle detection
 - **AWS SigV4 signing** — complete auth inheritance chain (request → folder → collection), credentials resolved through variable interpolation
-- **Auto-breakglass** — when a PROD request returns an invalid or expired AWS token, brio suspends the TUI, runs `~/bin/breakglass.sh` interactively, injects the fresh credentials, and retries automatically
+- **Credential hooks** — when a response matches a configured trigger (status code, body regex, env tier), brio runs a refresh script (interactively or in the background), injects the returned credentials as runtime vars, and retries the request automatically
 - **Environment safety tiers** — `●` safe · `▲` caution · `⚠` danger, with mutating methods (POST/PUT/PATCH) blocked in production
 - **Post-response scripts** — `bru.setVar` + `res.body` path extraction stores values as runtime vars for chained requests
 - **Pre-request scripts** — UUID v4 generation via `require('uuid').v4()`
@@ -84,6 +84,7 @@ brio discovers `bruno.json`, `collection.bru`, `environments/`, and all `.bru` r
 | `yc` | copy selected request as curl |
 | `V` | toggle runtime vars panel |
 | `H` | open history |
+| `gs` | open settings |
 | `?` | keybinding help |
 | `q` / `Ctrl+C` | quit |
 
@@ -119,16 +120,40 @@ brio discovers `bruno.json`, `collection.bru`, `environments/`, and all `.bru` r
 
 ---
 
-## Breakglass (Satispay PROD)
+## Credential hooks
 
-Production APIs sit behind an AWS API Gateway requiring SigV4 with a short-lived role (`api-developer--services-prod`). brio handles this transparently:
+Configure hooks in `~/.config/brio/config.toml` (press `gs` inside brio, then `e` to open the file in `$EDITOR`):
 
-1. You execute a PROD request — credentials are missing or expired
-2. brio detects the `403` + `"security token … invalid/expired"` response
-3. The TUI suspends and `~/bin/breakglass.sh` runs interactively in the terminal (SSO login, Step Function execution, approval wait)
-4. Once the script exits, brio reads the fresh credentials from the Bruno environment YAML written by the script, injects them as runtime variables, and retries the original request — no manual copy-paste required
+```toml
+[[hooks]]
+name = "aws-token-refresh"
 
-Credentials persist in the session for subsequent requests until the token expires again.
+[hooks.trigger]
+status = [401, 403]                          # HTTP status codes that fire the hook
+body   = "ExpiredToken|InvalidClientTokenId" # optional regex matched on response body
+tier   = "danger"                            # optional: "safe" | "caution" | "danger"
+
+[hooks.script]
+path = "~/bin/my-refresh.sh"                 # ~ and $ENV vars are expanded
+[hooks.script.env]
+AWS_DEFAULT_REGION = "eu-west-1"             # extra env vars passed to the script
+
+[hooks.output]
+type = "stdout"                              # "stdout" (non-interactive) | "file" (interactive)
+
+[hooks.vars]
+ACCESS_KEY    = "aws_access_key_id"          # output key → brio runtime variable
+SECRET_KEY    = "aws_secret_access_key"
+SESSION_TOKEN = "aws_session_token"
+```
+
+**How it works:**
+1. A request returns a matching status code (and optionally a matching body)
+2. brio runs the hook script — either capturing `KEY=VALUE` stdout (non-interactive) or suspending the TUI so the user can interact (interactive)
+3. The returned credentials are injected as runtime variables
+4. The original request is retried automatically
+
+Supported output formats for `type = "file"`: `dotenv`, `json`, `yaml`, `bruno-env`.
 
 ---
 

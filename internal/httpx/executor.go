@@ -27,8 +27,7 @@ func NewExecutor() *Executor {
 }
 
 // NewExecutorInsecure builds an executor that skips TLS certificate
-// verification. Required for endpoints served by a private CA
-// (e.g. internal-admin-api.satispay.aws).
+// verification. Required for endpoints served by a private CA.
 func NewExecutorInsecure() *Executor {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{

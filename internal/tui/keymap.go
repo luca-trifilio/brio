@@ -20,6 +20,7 @@ type KeyMap struct {
 	History  key.Binding
 	NextEnv  key.Binding
 	PrevEnv  key.Binding
+	Settings key.Binding
 }
 
 // DefaultKeyMap returns the vim-flavored defaults.
@@ -41,5 +42,6 @@ func DefaultKeyMap() KeyMap {
 		History:  key.NewBinding(key.WithKeys("H")),
 		NextEnv:  key.NewBinding(key.WithKeys("]"), key.WithHelp("]", "next env")),
 		PrevEnv:  key.NewBinding(key.WithKeys("["), key.WithHelp("[", "prev env")),
+		Settings: key.NewBinding(key.WithKeys("g", "s"), key.WithHelp("gs", "open settings")),
 	}
 }

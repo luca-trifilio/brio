@@ -78,9 +78,12 @@ func (s *Store) Append(e Entry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close() //nolint:errcheck
 	enc := json.NewEncoder(f)
-	return enc.Encode(e)
+	if err = enc.Encode(e); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 // Load returns up to MaxRead most recent entries (newest first).

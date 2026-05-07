@@ -1,4 +1,4 @@
-// Package tui implements the Bubble Tea front-end for bruno-tui.
+// Package tui implements the Bubble Tea front-end for brio.
 package tui
 
 import (
@@ -13,12 +13,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/luca-trifilio/bruno-tui/internal/history"
-	"github.com/luca-trifilio/bruno-tui/internal/interp"
-	"github.com/luca-trifilio/bruno-tui/internal/model"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
-	"github.com/luca-trifilio/bruno-tui/internal/tui/panes"
-	"github.com/luca-trifilio/bruno-tui/internal/util"
+	"github.com/luca-trifilio/brio/internal/history"
+	"github.com/luca-trifilio/brio/internal/interp"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/theme"
+	"github.com/luca-trifilio/brio/internal/tui/panes"
+	"github.com/luca-trifilio/brio/internal/util"
 )
 
 // Model is the root Bubble Tea model.
@@ -51,6 +51,10 @@ type Model struct {
 	pendingG       bool // for two-key gg binding
 	activeRequest  *model.Request // last executed request (may differ from tree selection)
 	activeScope    *interp.VarScope
+
+	// breakglass: set when a PROD request fails with an expired token so the
+	// original request can be re-fired after credentials are refreshed.
+	breakglassPending *breakglassPending
 
 	// Layout geometry — updated on every View so mouse hit-testing is accurate.
 	geom paneGeometry
@@ -132,6 +136,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case executeMsg:
 		m.loading = false
+		// Detect expired AWS token on PROD: suspend TUI and run breakglass.sh.
+		// Only attempt once per original request (breakglassPending == nil guard).
+		if m.breakglassPending == nil &&
+			isAWSTokenError(msg.Resp) &&
+			theme.ClassifyEnv(msg.Environment) == theme.TierDanger {
+			m.breakglassPending = &breakglassPending{
+				c:   msg.Collection,
+				env: m.envFor(msg.Collection),
+				req: msg.Request,
+			}
+			m.loading = true
+			m.statusLn = "⚠ token expired — running breakglass…"
+			return m, tea.Batch(m.spinner.Tick, breakglassCmd())
+		}
+		m.breakglassPending = nil // clear retry guard on any other outcome
 		r := msg.Resp
 		if msg.Resp.Err != nil {
 			m.statusLn = "error: " + msg.Resp.Err.Error()
@@ -154,6 +173,32 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = m.historyStore.Append(historyEntryFromExecute(msg))
 		}
 		return m, nil
+	case breakglassDoneMsg:
+		if msg.Err != nil {
+			m.loading = false
+			m.breakglassPending = nil
+			m.statusLn = "Breakglass authentication failed"
+			return m, nil
+		}
+		creds, err := readBreakglassCreds()
+		if err != nil {
+			m.loading = false
+			m.breakglassPending = nil
+			m.statusLn = "Breakglass authentication failed"
+			return m, nil
+		}
+		// Inject fresh credentials into runtime vars so every subsequent
+		// request in this session reuses them until they expire again.
+		m.vars.Set("AWS_ACCESS_KEY", creds.AccessKey)
+		m.vars.Set("AWS_SECRET_KEY", creds.SecretKey)
+		m.vars.Set("AWS_SESSION_TOKEN", creds.SessionToken)
+		p := m.breakglassPending
+		m.breakglassPending = nil
+		m.statusLn = "breakglass ok — retrying…"
+		return m, tea.Batch(
+			m.spinner.Tick,
+			runRequestCmd(p.c, p.env, p.req, m.vars.Snapshot()),
+		)
 	case errMsg:
 		m.statusLn = "error: " + msg.Err.Error()
 		return m, nil

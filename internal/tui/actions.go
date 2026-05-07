@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"bufio"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -10,10 +12,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/luca-trifilio/bruno-tui/internal/history"
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
-	"github.com/luca-trifilio/bruno-tui/internal/interp"
-	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/brio/internal/history"
+	"github.com/luca-trifilio/brio/internal/httpx"
+	"github.com/luca-trifilio/brio/internal/interp"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // resolveRequest builds an httpx.ResolvedRequest by interpolating req against
@@ -61,6 +64,10 @@ func resolveRequest(c *model.Collection, env *model.Environment, req *model.Requ
 			Region:          scope.Interpolate(auth.AWSv4.Region),
 		}
 	}
+	// Prod endpoints sit behind a private CA — skip TLS verification.
+	if env != nil && theme.ClassifyEnv(env.Name) == theme.TierDanger {
+		out.InsecureSkipTLS = true
+	}
 	return out, scope
 }
 
@@ -80,6 +87,17 @@ type errMsg struct{ Err error }
 // editorDoneMsg is sent after the external editor process exits.
 type editorDoneMsg struct{ CollectionPath string }
 
+// breakglassDoneMsg is sent after ~/bin/breakglass.sh exits.
+type breakglassDoneMsg struct{ Err error }
+
+// breakglassPending holds the context needed to retry a request after
+// breakglass credentials have been refreshed.
+type breakglassPending struct {
+	c   *model.Collection
+	env *model.Environment
+	req *model.Request
+}
+
 // runRequestCmd returns a tea.Cmd that runs the request asynchronously.
 func runRequestCmd(c *model.Collection, env *model.Environment, req *model.Request, runtime map[string]string) tea.Cmd {
 	return func() tea.Msg {
@@ -94,7 +112,12 @@ func runRequestCmd(c *model.Collection, env *model.Environment, req *model.Reque
 			merged[k] = v // runtime overrides script-generated values
 		}
 		resolved, _ := resolveRequest(c, env, req, merged)
-		ex := httpx.NewExecutor()
+		var ex *httpx.Executor
+		if resolved.InsecureSkipTLS {
+			ex = httpx.NewExecutorInsecure()
+		} else {
+			ex = httpx.NewExecutor()
+		}
 		resp := ex.Execute(resolved)
 		envName := ""
 		if env != nil {
@@ -234,4 +257,116 @@ func collectionDir(c *model.Collection) string {
 		return ""
 	}
 	return filepath.Base(c.Path)
+}
+
+// ----------------------------------------------------------------------------
+// Breakglass
+// ----------------------------------------------------------------------------
+
+// breakglassCreds holds the three AWS credential values written by breakglass.sh.
+type breakglassCreds struct {
+	AccessKey    string
+	SecretKey    string
+	SessionToken string
+}
+
+// breakglassCredsPath returns the path where breakglass.sh deposits credentials.
+func breakglassCredsPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "Library", "Application Support",
+		"bruno", "default-workspace", "environments", "AWS BREAKGLASS.yml")
+}
+
+// readBreakglassCreds parses the YAML file written by breakglass.sh:
+//
+//		variables:
+//		  - name: AWS_ACCESS_KEY
+//		    value: "ASIA..."
+//		  - name: AWS_SECRET_KEY
+//		    value: "..."
+//		  - name: AWS_SESSION_TOKEN
+//		    value: "..."
+//
+// No external YAML library is used — a simple line scan is sufficient for
+// this well-known, machine-generated format.
+func readBreakglassCreds() (breakglassCreds, error) {
+	f, err := os.Open(breakglassCredsPath())
+	if err != nil {
+		return breakglassCreds{}, fmt.Errorf("breakglass: open creds file: %w", err)
+	}
+	defer f.Close()
+
+	var creds breakglassCreds
+	var lastName string
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Capture the most recent "- name: FOO" line.
+		if strings.HasPrefix(line, "- name:") {
+			lastName = strings.TrimSpace(strings.TrimPrefix(line, "- name:"))
+			continue
+		}
+
+		// On the following "value: \"...\"" line, assign to the right field.
+		if strings.HasPrefix(line, "value:") {
+			val := strings.TrimSpace(strings.TrimPrefix(line, "value:"))
+			val = strings.Trim(val, `"`) // strip surrounding quotes
+			switch lastName {
+			case "AWS_ACCESS_KEY":
+				creds.AccessKey = val
+			case "AWS_SECRET_KEY":
+				creds.SecretKey = val
+			case "AWS_SESSION_TOKEN":
+				creds.SessionToken = val
+			}
+			lastName = ""
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return breakglassCreds{}, fmt.Errorf("breakglass: read creds file: %w", err)
+	}
+	if creds.AccessKey == "" || creds.SecretKey == "" {
+		return breakglassCreds{}, fmt.Errorf("breakglass: credentials not found in %s", breakglassCredsPath())
+	}
+	return creds, nil
+}
+
+// breakglassCmd suspends the TUI and runs ~/bin/breakglass.sh interactively
+// (SSO login + approval wait). Sends breakglassDoneMsg on return.
+//
+// The environment mirrors the Apple shortcut that runs the script every morning:
+//
+//	export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
+//	export HOME="..."
+//	export AWS_DEFAULT_REGION="eu-west-1"
+//	export AWS_DEFAULT_OUTPUT="json"
+//
+// Without these, AWS CLI may use a different output format and the script's
+// step-function status polling will not parse responses correctly.
+func breakglassCmd() tea.Cmd {
+	home, _ := os.UserHomeDir()
+	script := filepath.Join(home, "bin", "breakglass.sh")
+	c := exec.Command("sh", script) //nolint:gosec
+	c.Env = append(os.Environ(),
+		"PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:"+filepath.Join(home, "bin")+":"+os.Getenv("PATH"),
+		"HOME="+home,
+		"AWS_DEFAULT_REGION=eu-west-1",
+		"AWS_DEFAULT_OUTPUT=json",
+	)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return breakglassDoneMsg{Err: err}
+	})
+}
+
+// isAWSTokenError reports whether the response is a 403 caused by an
+// invalid or expired AWS security token — both require a breakglass refresh.
+func isAWSTokenError(resp httpx.Response) bool {
+	if resp.StatusCode != 403 {
+		return false
+	}
+	body := string(resp.Body)
+	return strings.Contains(body, "security token") &&
+		(strings.Contains(body, "expired") || strings.Contains(body, "invalid"))
 }

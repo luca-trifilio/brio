@@ -26,6 +26,21 @@ func NewExecutor() *Executor {
 	}
 }
 
+// NewExecutorInsecure builds an executor that skips TLS certificate
+// verification. Required for endpoints served by a private CA
+// (e.g. internal-admin-api.satispay.aws).
+func NewExecutorInsecure() *Executor {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, //nolint:gosec
+		},
+	}
+	return &Executor{
+		Client: &http.Client{Transport: tr},
+	}
+}
+
 // Execute runs r and returns a Response. Errors are captured in Response.Err
 // rather than returned, so callers can render them in the TUI uniformly.
 func (e *Executor) Execute(r ResolvedRequest) Response {

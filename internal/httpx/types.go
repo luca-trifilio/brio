@@ -16,10 +16,11 @@ type ResolvedRequest struct {
 	QueryParams [][2]string // ordered (name, value)
 	Body        []byte
 	BodyType    string // "json" / "text" / "xml" / "" / etc.
-	AuthMode    string // "none" / "awsv4" / ...
-	AWSv4       *AWSCreds
-	TimeoutMS   int
-	EncodeURL   bool
+	AuthMode       string // "none" / "awsv4" / ...
+	AWSv4          *AWSCreds
+	TimeoutMS      int
+	EncodeURL      bool
+	InsecureSkipTLS bool // skip TLS verification (needed for private-CA endpoints)
 }
 
 // AWSCreds holds the inputs for SigV4 signing.

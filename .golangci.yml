@@ -10,7 +10,6 @@ linters:
     - govet         # correctness (shadow, printf format, composite literals, etc.)
     - staticcheck   # comprehensive analysis — SA, S1, QF and ST rule sets
     - ineffassign   # assignments whose value is never used
-    - goimports     # import grouping and formatting
     - misspell      # typos in comments and string literals
     - unconvert     # unnecessary type conversions
     - bodyclose     # HTTP response body not closed
@@ -27,13 +26,19 @@ linters:
         linters: [errcheck, noctx, godot]
 
   settings:
-    goimports:
-      local-prefixes: github.com/luca-trifilio/brio
     misspell:
       locale: US
     godot:
       scope: toplevel
       period: true
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/luca-trifilio/brio
 
 issues:
   max-issues-per-linter: 0

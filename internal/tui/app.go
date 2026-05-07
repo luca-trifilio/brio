@@ -13,7 +13,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/luca-trifilio/brio/internal/config"
 	"github.com/luca-trifilio/brio/internal/history"
+	"github.com/luca-trifilio/brio/internal/hooks"
 	"github.com/luca-trifilio/brio/internal/interp"
 	"github.com/luca-trifilio/brio/internal/model"
 	"github.com/luca-trifilio/brio/internal/theme"
@@ -52,9 +54,10 @@ type Model struct {
 	activeRequest *model.Request // last executed request (may differ from tree selection)
 	activeScope   *interp.VarScope
 
-	// breakglass: set when a PROD request fails with an expired token so the
-	// original request can be re-fired after credentials are refreshed.
-	breakglassPending *breakglassPending
+	cfg          *config.Config    // loaded from ~/.config/brio/config.toml
+	hookPending  *hookPendingState // set while a credential-refresh hook is in flight
+	showSettings bool
+	settings     panes.SettingsModel
 
 	// Layout geometry — updated on every View so mouse hit-testing is accurate.
 	geom paneGeometry
@@ -69,7 +72,17 @@ type paneGeometry struct {
 }
 
 // NewModel constructs the TUI with one or more loaded collections.
+// hookPendingState holds the context needed to retry a request after a
+// credential-refresh hook has injected fresh variables.
+type hookPendingState struct {
+	hook *config.Hook
+	c    *model.Collection
+	env  *model.Environment
+	req  *model.Request
+}
+
 func NewModel(collections []*model.Collection, store *history.Store) *Model {
+	cfg, _ := config.Load() // missing file is fine — returns empty Config
 	tree := panes.NewTree(collections)
 	ci := textinput.New()
 	ci.Prompt = ":"
@@ -100,6 +113,8 @@ func NewModel(collections []*model.Collection, store *history.Store) *Model {
 		cmd:          ci,
 		spinner:      sp,
 		historyStore: store,
+		cfg:          cfg,
+		settings:     panes.NewSettings(),
 	}
 	// Default to the first env, alphabetically, for each collection.
 	for _, c := range collections {
@@ -136,21 +151,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case executeMsg:
 		m.loading = false
-		// Detect expired AWS token on PROD: suspend TUI and run breakglass.sh.
-		// Only attempt once per original request (breakglassPending == nil guard).
-		if m.breakglassPending == nil &&
-			isAWSTokenError(msg.Resp) &&
-			theme.ClassifyEnv(msg.Environment) == theme.TierDanger {
-			m.breakglassPending = &breakglassPending{
-				c:   msg.Collection,
-				env: m.envFor(msg.Collection),
-				req: msg.Request,
+		// Fire the first matching credential-refresh hook.
+		// Only attempt once per original request (hookPending == nil guard).
+		if m.hookPending == nil {
+			tier := theme.ClassifyEnv(msg.Environment)
+			if h := hooks.Match(m.cfg.Hooks, msg.Resp, tier); h != nil {
+				m.hookPending = &hookPendingState{
+					hook: h,
+					c:    msg.Collection,
+					env:  m.envFor(msg.Collection),
+					req:  msg.Request,
+				}
+				m.loading = true
+				m.statusLn = "⚠ hook triggered: " + h.Name + "…"
+				return m, tea.Batch(m.spinner.Tick, hooks.Cmd(h))
 			}
-			m.loading = true
-			m.statusLn = "⚠ token expired — running breakglass…"
-			return m, tea.Batch(m.spinner.Tick, breakglassCmd())
 		}
-		m.breakglassPending = nil // clear retry guard on any other outcome
+		m.hookPending = nil // clear retry guard on any other outcome
 		r := msg.Resp
 		if msg.Resp.Err != nil {
 			m.statusLn = "error: " + msg.Resp.Err.Error()
@@ -173,32 +190,39 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			_ = m.historyStore.Append(historyEntryFromExecute(msg))
 		}
 		return m, nil
-	case breakglassDoneMsg:
+	case hooks.DoneMsg:
+		m.loading = false
 		if msg.Err != nil {
-			m.loading = false
-			m.breakglassPending = nil
-			m.statusLn = "Breakglass authentication failed"
+			m.hookPending = nil
+			m.statusLn = "hook error: " + msg.Err.Error()
 			return m, nil
 		}
-		creds, err := readBreakglassCreds()
+		if m.hookPending != nil {
+			// Map output keys to runtime var names as configured in hook.Vars.
+			for outKey, varName := range m.hookPending.hook.Vars {
+				if val, ok := msg.Vars[outKey]; ok {
+					m.vars.Set(varName, val)
+				}
+			}
+			p := m.hookPending
+			m.hookPending = nil
+			m.statusLn = "hook ok — retrying…"
+			return m, tea.Batch(
+				m.spinner.Tick,
+				runRequestCmd(p.c, p.env, p.req, m.vars.Snapshot()),
+			)
+		}
+		m.hookPending = nil
+		return m, nil
+	case configEditDoneMsg:
+		cfg, err := config.Load()
 		if err != nil {
-			m.loading = false
-			m.breakglassPending = nil
-			m.statusLn = "Breakglass authentication failed"
+			m.statusLn = "config reload error: " + err.Error()
 			return m, nil
 		}
-		// Inject fresh credentials into runtime vars so every subsequent
-		// request in this session reuses them until they expire again.
-		m.vars.Set("AWS_ACCESS_KEY", creds.AccessKey)
-		m.vars.Set("AWS_SECRET_KEY", creds.SecretKey)
-		m.vars.Set("AWS_SESSION_TOKEN", creds.SessionToken)
-		p := m.breakglassPending
-		m.breakglassPending = nil
-		m.statusLn = "breakglass ok — retrying…"
-		return m, tea.Batch(
-			m.spinner.Tick,
-			runRequestCmd(p.c, p.env, p.req, m.vars.Snapshot()),
-		)
+		m.cfg = cfg
+		m.statusLn = "config reloaded"
+		return m, nil
 	case errMsg:
 		m.statusLn = "error: " + msg.Err.Error()
 		return m, nil
@@ -322,6 +346,25 @@ func (m *Model) View() string { return m.renderLayout() }
 // ----------------------------------------------------------------------------.
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Settings modal absorbs all keys when visible.
+	if m.showSettings {
+		switch msg.String() {
+		case "e":
+			return m, openConfigInEditor()
+		case "r":
+			cfg, err := config.Load()
+			if err != nil {
+				m.statusLn = "config reload error: " + err.Error()
+			} else {
+				m.cfg = cfg
+				m.statusLn = "config reloaded"
+			}
+		case "q", "esc":
+			m.showSettings = false
+		}
+		return m, nil
+	}
+
 	// Help modal absorbs all keys when visible.
 	if m.help.Visible {
 		switch msg.String() {
@@ -410,7 +453,8 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// ── Two-key gg: jump to top in response / request / tree ─────────────────
 	if m.pendingG {
 		m.pendingG = false
-		if s == "g" {
+		switch s {
+		case "g":
 			switch m.focused {
 			case PaneResponse:
 				m.response.HandleKey("g")
@@ -420,6 +464,8 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.tree.Top()
 				m.syncEnvPane()
 			}
+		case "s":
+			m.showSettings = true
 		}
 		// Always consume the second key of the sequence.
 		return m, nil
@@ -535,10 +581,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// First key of gg — arm pending flag for all scrollable panes.
 	case "g":
-		switch m.focused {
-		case PaneResponse, PaneRequest, PaneTree:
-			m.pendingG = true
-		}
+		m.pendingG = true // arm for gg (jump top) or gs (settings)
 		return m, nil
 
 	case "l", "right":
@@ -897,6 +940,10 @@ func (m *Model) activeRequestAndScope() (*model.Request, *interp.VarScope) {
 // ----------------------------------------------------------------------------
 // Status / command line rendering
 // ----------------------------------------------------------------------------.
+
+func (m *Model) renderSettings() string {
+	return m.settings.View(m.cfg, config.Path(), m.width-8, m.height-8)
+}
 
 func (m *Model) renderStatusBar() string {
 	c := m.activeCollection()

@@ -110,6 +110,7 @@ func GlobalSections() []HelpSection {
 				{"yc", "copy as curl"},
 				{"V", "toggle vars panel"},
 				{"H", "open history"},
+				{"gs", "open settings"},
 				{":", "command mode"},
 				{"q / Ctrl+C", "quit"},
 			},

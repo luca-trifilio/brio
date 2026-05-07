@@ -87,6 +87,9 @@ func (m *Model) renderLayout() string {
 		h := m.help.View(m.width/3, m.height-4)
 		body = overlayBottomRight(body, h, m.width, m.height)
 	}
+	if m.showSettings {
+		body = overlay(body, m.renderSettings(), m.width, m.height)
+	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, statusBar, body, cmdLine)
 }

@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"bufio"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -12,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/luca-trifilio/brio/internal/config"
 	"github.com/luca-trifilio/brio/internal/history"
 	"github.com/luca-trifilio/brio/internal/httpx"
 	"github.com/luca-trifilio/brio/internal/interp"
@@ -87,16 +86,8 @@ type errMsg struct{ Err error }
 // editorDoneMsg is sent after the external editor process exits.
 type editorDoneMsg struct{ CollectionPath string }
 
-// breakglassDoneMsg is sent after ~/bin/breakglass.sh exits.
-type breakglassDoneMsg struct{ Err error }
-
-// breakglassPending holds the context needed to retry a request after
-// breakglass credentials have been refreshed.
-type breakglassPending struct {
-	c   *model.Collection
-	env *model.Environment
-	req *model.Request
-}
+// configEditDoneMsg is sent after the config file editor process exits.
+type configEditDoneMsg struct{}
 
 // runRequestCmd returns a tea.Cmd that runs the request asynchronously.
 func runRequestCmd(c *model.Collection, env *model.Environment, req *model.Request, runtime map[string]string) tea.Cmd {
@@ -175,6 +166,28 @@ func historyEntryFromExecute(m executeMsg) history.Entry {
 		Error:           errStr,
 		Headers:         headers,
 	}
+}
+
+// openConfigInEditor suspends the TUI, launches $EDITOR on the brio config
+// file (creating it from the default template if it does not yet exist), then
+// resumes. On return it sends configEditDoneMsg so the caller can reload.
+func openConfigInEditor() tea.Cmd {
+	_ = config.EnsureDir()
+	p := config.Path()
+	if _, err := os.Stat(p); os.IsNotExist(err) {
+		_ = os.WriteFile(p, []byte(config.DefaultTemplate()), 0o644)
+	}
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+	}
+	if editor == "" {
+		editor = "vi"
+	}
+	c := exec.Command(editor, p) //nolint:gosec,noctx
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return configEditDoneMsg{}
+	})
 }
 
 // openEnvInEditor suspends the TUI, launches $EDITOR (fallback: vi) on envPath,
@@ -258,116 +271,4 @@ func collectionDir(c *model.Collection) string {
 		return ""
 	}
 	return filepath.Base(c.Path)
-}
-
-// ----------------------------------------------------------------------------
-// Breakglass
-// ----------------------------------------------------------------------------.
-
-// breakglassCreds holds the three AWS credential values written by breakglass.sh.
-type breakglassCreds struct {
-	AccessKey    string
-	SecretKey    string
-	SessionToken string
-}
-
-// breakglassCredsPath returns the path where breakglass.sh deposits credentials.
-func breakglassCredsPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Library", "Application Support",
-		"bruno", "default-workspace", "environments", "AWS BREAKGLASS.yml")
-}
-
-// readBreakglassCreds parses the YAML file written by breakglass.sh:
-//
-//	variables:
-//	  - name: AWS_ACCESS_KEY
-//	    value: "ASIA..."
-//	  - name: AWS_SECRET_KEY
-//	    value: "..."
-//	  - name: AWS_SESSION_TOKEN
-//	    value: "..."
-//
-// No external YAML library is used — a simple line scan is sufficient for
-// this well-known, machine-generated format.
-func readBreakglassCreds() (breakglassCreds, error) {
-	f, err := os.Open(breakglassCredsPath())
-	if err != nil {
-		return breakglassCreds{}, fmt.Errorf("breakglass: open creds file: %w", err)
-	}
-	defer f.Close() //nolint:errcheck
-
-	var creds breakglassCreds
-	var lastName string
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		// Capture the most recent "- name: FOO" line.
-		if strings.HasPrefix(line, "- name:") {
-			lastName = strings.TrimSpace(strings.TrimPrefix(line, "- name:"))
-			continue
-		}
-
-		// On the following "value: \"...\"" line, assign to the right field.
-		if strings.HasPrefix(line, "value:") {
-			val := strings.TrimSpace(strings.TrimPrefix(line, "value:"))
-			val = strings.Trim(val, `"`) // strip surrounding quotes
-			switch lastName {
-			case "AWS_ACCESS_KEY":
-				creds.AccessKey = val
-			case "AWS_SECRET_KEY":
-				creds.SecretKey = val
-			case "AWS_SESSION_TOKEN":
-				creds.SessionToken = val
-			}
-			lastName = ""
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return breakglassCreds{}, fmt.Errorf("breakglass: read creds file: %w", err)
-	}
-	if creds.AccessKey == "" || creds.SecretKey == "" {
-		return breakglassCreds{}, fmt.Errorf("breakglass: credentials not found in %s", breakglassCredsPath())
-	}
-	return creds, nil
-}
-
-// breakglassCmd suspends the TUI and runs ~/bin/breakglass.sh interactively
-// (SSO login + approval wait). Sends breakglassDoneMsg on return.
-//
-// The environment mirrors the Apple shortcut that runs the script every morning:
-//
-//	export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
-//	export HOME="..."
-//	export AWS_DEFAULT_REGION="eu-west-1"
-//	export AWS_DEFAULT_OUTPUT="json"
-//
-// Without these, AWS CLI may use a different output format and the script's
-// step-function status polling will not parse responses correctly.
-func breakglassCmd() tea.Cmd {
-	home, _ := os.UserHomeDir()
-	script := filepath.Join(home, "bin", "breakglass.sh")
-	c := exec.Command("sh", script) //nolint:gosec,noctx
-	c.Env = append(os.Environ(),
-		"PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:"+filepath.Join(home, "bin")+":"+os.Getenv("PATH"),
-		"HOME="+home,
-		"AWS_DEFAULT_REGION=eu-west-1",
-		"AWS_DEFAULT_OUTPUT=json",
-	)
-	return tea.ExecProcess(c, func(err error) tea.Msg {
-		return breakglassDoneMsg{Err: err}
-	})
-}
-
-// isAWSTokenError reports whether the response is a 403 caused by an
-// invalid or expired AWS security token — both require a breakglass refresh.
-func isAWSTokenError(resp httpx.Response) bool {
-	if resp.StatusCode != 403 {
-		return false
-	}
-	body := string(resp.Body)
-	return strings.Contains(body, "security token") &&
-		(strings.Contains(body, "expired") || strings.Contains(body, "invalid"))
 }

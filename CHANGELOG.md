@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/luca-trifilio/brio/compare/v0.1.1...v0.2.0) (2026-05-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* replace breakglass with generic credential-refresh hooks ([#7](https://github.com/luca-trifilio/brio/issues/7))
+
+### 🚀 Features
+
+* replace breakglass with generic credential-refresh hooks ([#7](https://github.com/luca-trifilio/brio/issues/7)) ([2b6d265](https://github.com/luca-trifilio/brio/commit/2b6d265356ed79308f9c4973e11b5b75a5541a4f))
+
 ## [0.1.1](https://github.com/luca-trifilio/brio/compare/v0.1.0...v0.1.1) (2026-05-07)
 
 

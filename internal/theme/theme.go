@@ -1,5 +1,5 @@
 // Package theme defines the Catppuccin Macchiato color palette and shared
-// lipgloss styles for bruno-tui.
+// lipgloss styles for brio.
 package theme
 
 import (

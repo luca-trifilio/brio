@@ -12,8 +12,8 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/httpx"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 const leapLabels = "asdfjklghqwertyuiopzxcvbnmASDFJKLGHQWERTYUIOPZXCVBNM"

@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // SortEnvNames orders environment names by safety tier (safe → caution → danger)

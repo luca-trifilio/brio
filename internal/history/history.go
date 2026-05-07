@@ -42,13 +42,13 @@ type Store struct {
 // DefaultPath returns the default history file path, honouring XDG_DATA_HOME.
 func DefaultPath() (string, error) {
 	if d := os.Getenv("XDG_DATA_HOME"); d != "" {
-		return filepath.Join(d, "bruno-tui", "history.jsonl"), nil
+		return filepath.Join(d, "brio", "history.jsonl"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".local", "share", "bruno-tui", "history.jsonl"), nil
+	return filepath.Join(home, ".local", "share", "brio", "history.jsonl"), nil
 }
 
 // New returns a Store at path (creates parent directory lazily on Append).

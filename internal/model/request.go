@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/parser"
+	"github.com/luca-trifilio/brio/internal/parser"
 )
 
 // Request is the typed view of a single `.bru` HTTP request file.

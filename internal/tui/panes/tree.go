@@ -3,8 +3,8 @@ package panes
 import (
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // TreeNodeKind tells whether a tree row points at a collection, folder, or request.

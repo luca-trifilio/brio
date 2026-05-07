@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/brio/internal/model"
 )
 
 // VarScope is a layered map (lowest priority first). Lookup walks the layers

@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/luca-trifilio/bruno-tui/internal/history"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/history"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // HistoryModel is a modal list of history entries.

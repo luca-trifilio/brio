@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/luca-trifilio/bruno-tui/internal/parser"
+	"github.com/luca-trifilio/brio/internal/parser"
 )
 
 // BrunoConfig is the on-disk shape of `bruno.json`.

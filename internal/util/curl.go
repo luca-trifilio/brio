@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
+	"github.com/luca-trifilio/brio/internal/httpx"
 )
 
 // ToCurl renders r as a curl command. AWS SigV4 auth is replaced by a

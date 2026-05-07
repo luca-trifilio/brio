@@ -19,23 +19,22 @@ linters:
     - tenv          # use t.Setenv instead of os.Setenv in tests
     - nilerr        # mistakenly return nil instead of the error variable
 
-  settings:
-    goimports:
-      local-prefixes: github.com/luca-trifilio/brio
-    misspell:
-      locale: US
-    godot:
-      scope: toplevel
-      period: true
+  exclusions:
+    rules:
+      # Test files get a relaxed set — errcheck false-positives on t.Setenv etc.,
+      # noctx is not meaningful in tests, godot is noisy on test helper comments.
+      - path: _test\.go
+        linters: [errcheck, noctx, godot]
 
-exclusions:
-  rules:
-    # Test files get a relaxed set — errcheck false-positives on t.Setenv etc.,
-    # noctx is not meaningful in tests, godot is noisy on test helper comments.
-    - path: _test\.go
-      linters: [errcheck, noctx, godot]
+linters-settings:
+  goimports:
+    local-prefixes: github.com/luca-trifilio/brio
+  misspell:
+    locale: US
+  godot:
+    scope: toplevel
+    period: true
 
-output:
-  issues:
-    max-issues-per-linter: 0
-    max-same-issues: 0
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

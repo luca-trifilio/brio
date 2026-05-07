@@ -20,10 +20,11 @@ By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 | Go | see `go.mod` | https://go.dev/dl |
 | `make` | any | system |
 | `golangci-lint` | latest | `make setup` |
+| `lefthook` | latest | `brew install lefthook` |
 | `goreleaser` | v2 | `brew install goreleaser` |
 | `gh` | latest | `brew install gh` |
 
-Run `make setup` to install the Go-based tools automatically.
+Run `make setup` to install tools and wire up git hooks (pre-commit: fmt/vet/lint, pre-push: tests).
 
 ---
 

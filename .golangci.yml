@@ -15,7 +15,7 @@ linters:
     - bodyclose     # HTTP response body not closed
     - noctx         # HTTP requests constructed without a context
     - godot         # exported comments should end with a period
-    - tenv          # use t.Setenv instead of os.Setenv in tests
+    - usetesting    # use t.Setenv instead of os.Setenv in tests
     - nilerr        # mistakenly return nil instead of the error variable
 
   exclusions:

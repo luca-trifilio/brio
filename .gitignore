@@ -25,8 +25,8 @@ go.work.sum
 # Distribution
 /dist/
 
-# Task files (Claude Code internal)
-.claude/tasks/
+# Pi / Claude local config (skills, tasks — machine-local only)
+.claude/
 
 # Editor
 .DS_Store

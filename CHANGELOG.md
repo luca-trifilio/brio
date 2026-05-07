@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/luca-trifilio/brio/compare/v0.2.0...v0.2.1) (2026-05-07)
+
+
+### 🚀 Features
+
+* persistent collection paths in config.toml + interactive editor ([#10](https://github.com/luca-trifilio/brio/issues/10)) ([467c3e1](https://github.com/luca-trifilio/brio/commit/467c3e1f20fd8c5fd0a25f540d0ca2d808a30a8c))
+
 ## [0.2.0](https://github.com/luca-trifilio/brio/compare/v0.1.1...v0.2.0) (2026-05-07)
 
 

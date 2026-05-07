@@ -44,13 +44,13 @@ type Model struct {
 	loading  bool
 	statusLn string
 
-	historyStore *history.Store
-	response     *panes.ResponseModel
-	help         panes.HelpModel
-	pendingYank    bool // for two-key yc binding
-	pendingG       bool // for two-key gg binding
-	activeRequest  *model.Request // last executed request (may differ from tree selection)
-	activeScope    *interp.VarScope
+	historyStore  *history.Store
+	response      *panes.ResponseModel
+	help          panes.HelpModel
+	pendingYank   bool           // for two-key yc binding
+	pendingG      bool           // for two-key gg binding
+	activeRequest *model.Request // last executed request (may differ from tree selection)
+	activeScope   *interp.VarScope
 
 	// breakglass: set when a PROD request fails with an expired token so the
 	// original request can be re-fired after credentials are refreshed.
@@ -319,7 +319,7 @@ func (m *Model) View() string { return m.renderLayout() }
 
 // ----------------------------------------------------------------------------
 // Key dispatch
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Help modal absorbs all keys when visible.
@@ -610,7 +610,7 @@ func (m *Model) cycleEnv(dir int) {
 
 // ----------------------------------------------------------------------------
 // Commands
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 func (m *Model) runCommand(input string) (tea.Model, tea.Cmd) {
 	if input == "" {
@@ -791,7 +791,7 @@ func (m *Model) copyCurl() (tea.Model, tea.Cmd) {
 
 // ----------------------------------------------------------------------------
 // Helpers
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 func (m *Model) helpSections() []panes.HelpSection {
 	switch m.focused {
@@ -896,7 +896,7 @@ func (m *Model) activeRequestAndScope() (*model.Request, *interp.VarScope) {
 
 // ----------------------------------------------------------------------------
 // Status / command line rendering
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 func (m *Model) renderStatusBar() string {
 	c := m.activeCollection()
@@ -944,7 +944,7 @@ func (m *Model) renderCommandLine() string {
 	} else if m.pendingG {
 		pendingKey = "g"
 	}
-	hint := "? help"
+	var hint string
 	if pendingKey != "" {
 		hint = theme.StyleActive.Render(pendingKey) + theme.StyleHint.Render("…  ? help")
 	} else {
@@ -971,7 +971,7 @@ func (m *Model) renderCommandLine() string {
 
 // ----------------------------------------------------------------------------
 // Pane cycling
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 func nextPane(p Pane) Pane {
 	switch p {

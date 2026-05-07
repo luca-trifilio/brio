@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/brio/internal/model"
 )
 
 // setVarRe matches: bru.setVar("varName", res.body.some.path)
@@ -102,10 +102,10 @@ func jsonPath(v any, parts []string) (string, bool) {
 
 // ---------------------------------------------------------------------------
 // Pre-request script runner
-// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------.
 
 // uuidFuncAssignRe matches: const/let/var X = Y() or Y.Z()
-// (captures variable name X and the right-hand-side callee)
+// (captures variable name X and the right-hand-side callee).
 var uuidFuncAssignRe = regexp.MustCompile(`(?:const|let|var)\s+(\w+)\s*=\s*([\w.]+)\(\)`)
 
 // bruSimpleSetVarRe matches bru.setVar / bru.setEnvVar with a simple identifier value.
@@ -173,7 +173,7 @@ func generateUUIDv4() string {
 // collection → folder chain (root→leaf) → request.
 // Results from later scripts override earlier ones (same priority as the
 // Bruno runtime — scripts can override each other in execution order).
-// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------.
 
 // CollectPreRequestVars runs every pre-request script in scope and returns the
 // merged vars map. It is called before request resolution so the generated
@@ -220,7 +220,7 @@ func CollectPreRequestVars(c *model.Collection, req *model.Request) map[string]s
 
 // ---------------------------------------------------------------------------
 // JSON path helpers (used by RunPostResponseScript)
-// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------.
 
 func jsonValueToString(v any) (string, bool) {
 	switch val := v.(type) {

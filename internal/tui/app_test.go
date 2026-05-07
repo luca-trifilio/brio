@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/brio/internal/model"
 )
 
 func testModel() *Model {

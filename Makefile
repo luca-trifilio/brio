@@ -119,6 +119,7 @@ setup: ## Install required dev tools
 	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	@echo ""
 	@echo "The following tools are best installed via Homebrew:"
-	@echo "  brew install goreleaser cosign gh"
+	@echo "  brew install goreleaser cosign gh lefthook"
 	@echo ""
+	@lefthook install
 	@echo "$(GREEN)✓$(RESET) setup complete"

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
+	"github.com/luca-trifilio/brio/internal/httpx"
 )
 
 // ToCurl renders r as a curl command. AWS SigV4 auth is replaced by a
@@ -40,7 +40,7 @@ func ToCurl(r httpx.ResolvedRequest) string {
 
 	for name, vals := range r.Headers {
 		for _, v := range vals {
-			b.WriteString(fmt.Sprintf(" -H %s", shellQuote(name+": "+v)))
+			fmt.Fprintf(&b, " -H %s", shellQuote(name+": "+v))
 		}
 	}
 

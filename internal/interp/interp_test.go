@@ -3,7 +3,7 @@ package interp
 import (
 	"testing"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/brio/internal/model"
 )
 
 func TestInterpolateBasic(t *testing.T) {

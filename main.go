@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/luca-trifilio/bruno-tui/internal/cli"
+	"github.com/luca-trifilio/brio/internal/cli"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // HelpEntry is a single keybinding row.

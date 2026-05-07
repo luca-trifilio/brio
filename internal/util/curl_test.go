@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
+	"github.com/luca-trifilio/brio/internal/httpx"
 )
 
 func TestToCurl_Basic(t *testing.T) {

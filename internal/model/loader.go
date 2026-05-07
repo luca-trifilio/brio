@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/parser"
+	"github.com/luca-trifilio/brio/internal/parser"
 )
 
 // alwaysSkip directories — Bruno's build mirrors and VCS noise.

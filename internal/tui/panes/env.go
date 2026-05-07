@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // SortEnvNames orders environment names by safety tier (safe → caution → danger)
@@ -131,7 +131,7 @@ func (e *EnvModel) View(active string, width int, focused bool) string {
 		icon := theme.EnvTierIcon(n)
 		nameStyle := theme.EnvTierStyle(n)
 
-		// Active bullet inherits the tier colour so it reads as one unit.
+		// Active bullet inherits the tier color so it reads as one unit.
 		activeMarker := "  "
 		if isActive {
 			activeMarker = nameStyle.Render("● ")

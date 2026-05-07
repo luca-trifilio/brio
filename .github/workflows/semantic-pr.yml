@@ -6,7 +6,7 @@ name: Semantic PR
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, reopened]  # title changes on edited, not on new commits
 
 permissions:
   pull-requests: read

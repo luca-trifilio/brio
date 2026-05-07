@@ -1,4 +1,4 @@
-module github.com/luca-trifilio/bruno-tui
+module github.com/luca-trifilio/brio
 
 go 1.26.2
 

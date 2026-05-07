@@ -61,7 +61,7 @@ func ParseFile(path string) (*BruDoc, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	doc, err := Parse(f)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
@@ -226,10 +226,10 @@ func (p *parser) readBracedBody(raw bool) (string, error) {
 func (p *parser) skipWhitespaceAndComments() {
 	for p.pos < len(p.src) {
 		c := p.src[p.pos]
-		switch {
-		case c == ' ' || c == '\t' || c == '\r':
+		switch c {
+		case ' ', '\t', '\r':
 			p.pos++
-		case c == '\n':
+		case '\n':
 			p.ln++
 			p.pos++
 		default:

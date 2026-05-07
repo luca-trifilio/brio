@@ -7,14 +7,14 @@ type HTTPMethod string
 type AuthMode string
 
 const (
-	AuthInherit AuthMode = "inherit"
-	AuthNone    AuthMode = "none"
+	AuthInherit   AuthMode = "inherit"
+	AuthNone      AuthMode = "none"
 	AuthModeAWSv4 AuthMode = "awsv4"
-	AuthBasic   AuthMode = "basic"
-	AuthBearer  AuthMode = "bearer"
-	AuthAPIKey  AuthMode = "apikey"
-	AuthDigest  AuthMode = "digest"
-	AuthOAuth2  AuthMode = "oauth2"
+	AuthBasic     AuthMode = "basic"
+	AuthBearer    AuthMode = "bearer"
+	AuthAPIKey    AuthMode = "apikey"
+	AuthDigest    AuthMode = "digest"
+	AuthOAuth2    AuthMode = "oauth2"
 )
 
 // Header is a request header line.

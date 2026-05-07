@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: false  # run sequentially so lint sees fmt output
+  commands:
+    fmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+
+    lint:
+      glob: "*.go"
+      run: golangci-lint run --fix ./...
+      stage_fixed: true
+
+pre-push:
+  commands:
+    test:
+      run: go test -race ./...
+      fail_text: "Run 'make test' to see details"

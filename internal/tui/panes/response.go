@@ -12,8 +12,8 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/httpx"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 const leapLabels = "asdfjklghqwertyuiopzxcvbnmASDFJKLGHQWERTYUIOPZXCVBNM"
@@ -29,13 +29,13 @@ type leapTarget struct {
 type ResponseModel struct {
 	resp     *httpx.Response
 	resolved *httpx.ResolvedRequest // the request that produced resp (for sent-body display)
-	lines    []string // all rendered lines
-	contentW int      // exact display-content width (scrollbar + gutter excluded), set by rebuild()
-	offset   int      // first visible line index
-	cursor   int      // absolute index of the highlighted line
-	height   int      // last known viewport height
-	width    int      // last known viewport width
-	count    int      // pending numeric prefix (e.g. 5 in "5j")
+	lines    []string               // all rendered lines
+	contentW int                    // exact display-content width (scrollbar + gutter excluded), set by rebuild()
+	offset   int                    // first visible line index
+	cursor   int                    // absolute index of the highlighted line
+	height   int                    // last known viewport height
+	width    int                    // last known viewport width
+	count    int                    // pending numeric prefix (e.g. 5 in "5j")
 
 	// /? search state
 	searchBuf     string
@@ -134,7 +134,7 @@ func (r *ResponseModel) rebuild() {
 		nLines = 1
 	}
 	gutterW := len(fmt.Sprintf("%d", nLines)) + 1 // digit-width + 1 separator space
-	r.contentW = r.width - 1 - gutterW              // -1 scrollbar column
+	r.contentW = r.width - 1 - gutterW            // -1 scrollbar column
 	if r.contentW < 20 {
 		r.contentW = 20
 	}
@@ -288,12 +288,14 @@ func (r *ResponseModel) HandleKey(key string) bool {
 			return true
 		// All movement keys extend the selection by moving cursor (anchor stays fixed).
 		case "j", "down":
-			n := r.n(); r.count = 0
+			n := r.n()
+			r.count = 0
 			r.cursor += n
 			r.clamp()
 			return true
 		case "k", "up":
-			n := r.n(); r.count = 0
+			n := r.n()
+			r.count = 0
 			r.cursor -= n
 			r.clamp()
 			return true
@@ -318,7 +320,8 @@ func (r *ResponseModel) HandleKey(key string) bool {
 			r.offset = 0
 			return true
 		case "G":
-			n := r.n(); r.count = 0
+			n := r.n()
+			r.count = 0
 			if n > 1 {
 				r.cursor = n - 1
 			} else {

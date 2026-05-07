@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/brio/internal/model"
 )
 
 func TestResolveAuthBckTransaction(t *testing.T) {

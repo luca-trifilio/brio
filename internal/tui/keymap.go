@@ -4,25 +4,25 @@ import "github.com/charmbracelet/bubbles/key"
 
 // KeyMap holds bindings used in normal mode.
 type KeyMap struct {
-	Up          key.Binding
-	Down        key.Binding
-	Left        key.Binding
-	Right       key.Binding
-	Enter       key.Binding
-	Quit        key.Binding
-	Command     key.Binding
-	Vars        key.Binding
-	YankCurl    key.Binding
-	NextPane    key.Binding
-	PrevPane    key.Binding
-	Help        key.Binding
-	Escape      key.Binding
-	History     key.Binding
-	NextEnv     key.Binding
-	PrevEnv     key.Binding
+	Up       key.Binding
+	Down     key.Binding
+	Left     key.Binding
+	Right    key.Binding
+	Enter    key.Binding
+	Quit     key.Binding
+	Command  key.Binding
+	Vars     key.Binding
+	YankCurl key.Binding
+	NextPane key.Binding
+	PrevPane key.Binding
+	Help     key.Binding
+	Escape   key.Binding
+	History  key.Binding
+	NextEnv  key.Binding
+	PrevEnv  key.Binding
 }
 
-// DefaultKeyMap returns the vim-flavoured defaults.
+// DefaultKeyMap returns the vim-flavored defaults.
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		Up:       key.NewBinding(key.WithKeys("k", "up")),

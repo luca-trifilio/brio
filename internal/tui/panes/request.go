@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/luca-trifilio/bruno-tui/internal/interp"
-	"github.com/luca-trifilio/bruno-tui/internal/model"
-	"github.com/luca-trifilio/bruno-tui/internal/theme"
+	"github.com/luca-trifilio/brio/internal/interp"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/theme"
 )
 
 // RequestModel holds rendered lines and vim scroll state for the Request pane.

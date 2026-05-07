@@ -26,14 +26,14 @@ linters:
       - path: _test\.go
         linters: [errcheck, noctx, godot]
 
-linters-settings:
-  goimports:
-    local-prefixes: github.com/luca-trifilio/brio
-  misspell:
-    locale: US
-  godot:
-    scope: toplevel
-    period: true
+  settings:
+    goimports:
+      local-prefixes: github.com/luca-trifilio/brio
+    misspell:
+      locale: US
+    godot:
+      scope: toplevel
+      period: true
 
 issues:
   max-issues-per-linter: 0

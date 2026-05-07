@@ -2,7 +2,8 @@ package config
 
 // Config is the top-level brio configuration loaded from config.toml.
 type Config struct {
-	Hooks []Hook `toml:"hooks"`
+	Collections []string `toml:"collections"`
+	Hooks       []Hook   `toml:"hooks"`
 }
 
 // Hook describes a single credential-refresh hook.

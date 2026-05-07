@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/luca-trifilio/brio/internal/brunoprefs"
+	"github.com/luca-trifilio/brio/internal/config"
 	"github.com/luca-trifilio/brio/internal/history"
 	"github.com/luca-trifilio/brio/internal/model"
 	"github.com/luca-trifilio/brio/internal/tui"
@@ -59,16 +60,40 @@ Read-only by design — .bru files are never written.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths := args
 			if len(paths) == 0 {
-				discovered, err := brunoprefs.CollectionPaths()
+				cfg, err := config.Load()
 				if err != nil {
-					return fmt.Errorf("reading Bruno preferences: %w", err)
+					return fmt.Errorf("loading config: %w", err)
 				}
-				if len(discovered) == 0 {
-					return fmt.Errorf("no collections found in Bruno preferences; pass at least one collection path as argument")
+
+				// 1. config.toml → collections
+				if len(cfg.Collections) > 0 {
+					warn := func(p string) {
+						_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: collection path not found, skipping: %s\n", p)
+					}
+					paths = config.ResolvedCollections(cfg, warn)
+					if len(paths) > 0 {
+						_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "loading collections from config:\n  %s\n\n",
+							strings.Join(paths, "\n  "))
+					}
 				}
-				paths = discovered
-				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "loading collections from Bruno:\n  %s\n\n",
-					strings.Join(paths, "\n  "))
+
+				// 2. Bruno preferences.json
+				if len(paths) == 0 {
+					discovered, err := brunoprefs.CollectionPaths()
+					if err != nil {
+						return fmt.Errorf("reading Bruno preferences: %w", err)
+					}
+					if len(discovered) > 0 {
+						paths = discovered
+						_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "loading collections from Bruno:\n  %s\n\n",
+							strings.Join(paths, "\n  "))
+					}
+				}
+
+				// 3. Nothing found
+				if len(paths) == 0 {
+					return fmt.Errorf("no collections found; add paths to %s or pass them as arguments", config.Path())
+				}
 			}
 			var collections []*model.Collection
 			for _, p := range paths {

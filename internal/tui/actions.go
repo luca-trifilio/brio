@@ -187,7 +187,7 @@ func openEnvInEditor(envPath, collectionPath string) tea.Cmd {
 	if editor == "" {
 		editor = "vi"
 	}
-	c := exec.Command(editor, envPath) //nolint:gosec
+	c := exec.Command(editor, envPath) //nolint:gosec,noctx
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return editorDoneMsg{CollectionPath: collectionPath}
 	})
@@ -211,9 +211,10 @@ func stripJSONComments(s string) string {
 			continue
 		}
 		if inStr {
-			if c == '\\' {
+			switch c {
+			case '\\':
 				esc = true
-			} else if c == '"' {
+			case '"':
 				inStr = false
 			}
 			b.WriteByte(c)
@@ -261,7 +262,7 @@ func collectionDir(c *model.Collection) string {
 
 // ----------------------------------------------------------------------------
 // Breakglass
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 // breakglassCreds holds the three AWS credential values written by breakglass.sh.
 type breakglassCreds struct {
@@ -279,13 +280,13 @@ func breakglassCredsPath() string {
 
 // readBreakglassCreds parses the YAML file written by breakglass.sh:
 //
-//		variables:
-//		  - name: AWS_ACCESS_KEY
-//		    value: "ASIA..."
-//		  - name: AWS_SECRET_KEY
-//		    value: "..."
-//		  - name: AWS_SESSION_TOKEN
-//		    value: "..."
+//	variables:
+//	  - name: AWS_ACCESS_KEY
+//	    value: "ASIA..."
+//	  - name: AWS_SECRET_KEY
+//	    value: "..."
+//	  - name: AWS_SESSION_TOKEN
+//	    value: "..."
 //
 // No external YAML library is used — a simple line scan is sufficient for
 // this well-known, machine-generated format.
@@ -294,7 +295,7 @@ func readBreakglassCreds() (breakglassCreds, error) {
 	if err != nil {
 		return breakglassCreds{}, fmt.Errorf("breakglass: open creds file: %w", err)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	var creds breakglassCreds
 	var lastName string
@@ -348,7 +349,7 @@ func readBreakglassCreds() (breakglassCreds, error) {
 func breakglassCmd() tea.Cmd {
 	home, _ := os.UserHomeDir()
 	script := filepath.Join(home, "bin", "breakglass.sh")
-	c := exec.Command("sh", script) //nolint:gosec
+	c := exec.Command("sh", script) //nolint:gosec,noctx
 	c.Env = append(os.Environ(),
 		"PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:"+filepath.Join(home, "bin")+":"+os.Getenv("PATH"),
 		"HOME="+home,

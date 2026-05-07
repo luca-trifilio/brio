@@ -40,7 +40,7 @@ func ToCurl(r httpx.ResolvedRequest) string {
 
 	for name, vals := range r.Headers {
 		for _, v := range vals {
-			b.WriteString(fmt.Sprintf(" -H %s", shellQuote(name+": "+v)))
+			fmt.Fprintf(&b, " -H %s", shellQuote(name+": "+v))
 		}
 	}
 

@@ -10,16 +10,16 @@ import (
 // ResolvedRequest is what the executor consumes — every field is already
 // interpolated; auth fields hold concrete credentials.
 type ResolvedRequest struct {
-	Method      string
-	URL         string
-	Headers     http.Header
-	QueryParams [][2]string // ordered (name, value)
-	Body        []byte
-	BodyType    string // "json" / "text" / "xml" / "" / etc.
-	AuthMode       string // "none" / "awsv4" / ...
-	AWSv4          *AWSCreds
-	TimeoutMS      int
-	EncodeURL      bool
+	Method          string
+	URL             string
+	Headers         http.Header
+	QueryParams     [][2]string // ordered (name, value)
+	Body            []byte
+	BodyType        string // "json" / "text" / "xml" / "" / etc.
+	AuthMode        string // "none" / "awsv4" / ...
+	AWSv4           *AWSCreds
+	TimeoutMS       int
+	EncodeURL       bool
 	InsecureSkipTLS bool // skip TLS verification (needed for private-CA endpoints)
 }
 

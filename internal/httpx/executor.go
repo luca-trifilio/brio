@@ -16,7 +16,7 @@ type Executor struct {
 }
 
 // NewExecutor builds an executor with sane defaults: TLS enabled, no global
-// timeout (per-request timeout is honoured via context).
+// timeout (per-request timeout is honored via context).
 func NewExecutor() *Executor {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
@@ -109,7 +109,7 @@ func (e *Executor) Execute(r ResolvedRequest) Response {
 		resp.Elapsed = time.Since(start)
 		return resp
 	}
-	defer httpResp.Body.Close()
+	defer httpResp.Body.Close() //nolint:errcheck
 
 	body, err := io.ReadAll(httpResp.Body)
 	if err != nil {

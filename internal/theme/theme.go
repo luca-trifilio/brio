@@ -25,31 +25,31 @@ const (
 	Blue      = lipgloss.Color("#8aadf4")
 	Lavender  = lipgloss.Color("#b7bdf8")
 
-	Text      = lipgloss.Color("#cad3f5")
-	Subtext1  = lipgloss.Color("#b8c0e0")
-	Subtext0  = lipgloss.Color("#a5adcb")
-	Overlay2  = lipgloss.Color("#939ab7")
-	Overlay1  = lipgloss.Color("#8087a2")
-	Overlay0  = lipgloss.Color("#6e738d")
-	Surface2  = lipgloss.Color("#5b6078")
-	Surface1  = lipgloss.Color("#494d64")
-	Surface0  = lipgloss.Color("#363a4f")
-	Base      = lipgloss.Color("#24273a")
-	Mantle    = lipgloss.Color("#1e2030")
-	Crust     = lipgloss.Color("#181926")
+	Text     = lipgloss.Color("#cad3f5")
+	Subtext1 = lipgloss.Color("#b8c0e0")
+	Subtext0 = lipgloss.Color("#a5adcb")
+	Overlay2 = lipgloss.Color("#939ab7")
+	Overlay1 = lipgloss.Color("#8087a2")
+	Overlay0 = lipgloss.Color("#6e738d")
+	Surface2 = lipgloss.Color("#5b6078")
+	Surface1 = lipgloss.Color("#494d64")
+	Surface0 = lipgloss.Color("#363a4f")
+	Base     = lipgloss.Color("#24273a")
+	Mantle   = lipgloss.Color("#1e2030")
+	Crust    = lipgloss.Color("#181926")
 )
 
 // Semantic aliases — use these in UI code instead of raw palette names.
 var (
-	// Text hierarchy
-	StyleText     = lipgloss.NewStyle().Foreground(Text)
-	StyleSubtext  = lipgloss.NewStyle().Foreground(Subtext0)
-	StyleDim      = lipgloss.NewStyle().Foreground(Overlay1)
-	StyleBold     = lipgloss.NewStyle().Foreground(Text).Bold(true)
+	// Text hierarchy.
+	StyleText    = lipgloss.NewStyle().Foreground(Text)
+	StyleSubtext = lipgloss.NewStyle().Foreground(Subtext0)
+	StyleDim     = lipgloss.NewStyle().Foreground(Overlay1)
+	StyleBold    = lipgloss.NewStyle().Foreground(Text).Bold(true)
 
-	// Accents
+	// Accents.
 	StyleTitle      = lipgloss.NewStyle().Foreground(Lavender).Bold(true)
-	StyleCollection = lipgloss.NewStyle().Foreground(Peach).Bold(true)  // collection root names
+	StyleCollection = lipgloss.NewStyle().Foreground(Peach).Bold(true) // collection root names
 	StyleFocused    = lipgloss.NewStyle().Foreground(Blue)
 	StyleActive     = lipgloss.NewStyle().Foreground(Green).Bold(true)
 	StyleCursor     = lipgloss.NewStyle().Foreground(Yellow).Bold(true)
@@ -64,14 +64,14 @@ var (
 			Foreground(Sky).
 			Bold(true)
 
-	// HTTP methods
+	// HTTP methods.
 	StyleGET    = lipgloss.NewStyle().Foreground(Green)
 	StylePOST   = lipgloss.NewStyle().Foreground(Blue)
 	StylePUT    = lipgloss.NewStyle().Foreground(Yellow)
 	StylePATCH  = lipgloss.NewStyle().Foreground(Peach)
 	StyleDELETE = lipgloss.NewStyle().Foreground(Red)
 
-	// Status bar
+	// Status bar.
 	StyleStatusBar = lipgloss.NewStyle().
 			Background(Mantle).
 			Foreground(Text).
@@ -86,14 +86,14 @@ var (
 	// Cursor line within a visual selection — anchor end indicator.
 	StyleVisualCursor = lipgloss.NewStyle().Background(Surface1).Foreground(Mauve).Bold(true)
 
-	// Borders
-	BorderFocused  = Blue
+	// Borders.
+	BorderFocused   = Blue
 	BorderUnfocused = Surface2
 )
 
 // ----------------------------------------------------------------------------
 // Environment safety tiers
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 // EnvTier classifies an environment by its risk level.
 type EnvTier int
@@ -175,7 +175,7 @@ func MutatingMethodsBlocked(envName string) bool {
 
 // ----------------------------------------------------------------------------
 // HTTP method styles
-// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------.
 
 // MethodStyle returns the style for a given HTTP method string.
 func MethodStyle(method string) lipgloss.Style {

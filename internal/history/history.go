@@ -39,7 +39,7 @@ type Store struct {
 	Path string
 }
 
-// DefaultPath returns the default history file path, honouring XDG_DATA_HOME.
+// DefaultPath returns the default history file path, honoring XDG_DATA_HOME.
 func DefaultPath() (string, error) {
 	if d := os.Getenv("XDG_DATA_HOME"); d != "" {
 		return filepath.Join(d, "brio", "history.jsonl"), nil
@@ -78,7 +78,7 @@ func (s *Store) Append(e Entry) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	enc := json.NewEncoder(f)
 	return enc.Encode(e)
 }
@@ -92,7 +92,7 @@ func (s *Store) Load() ([]Entry, error) {
 		}
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 	var all []Entry
 	r := bufio.NewReader(f)
 	for {

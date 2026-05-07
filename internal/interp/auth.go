@@ -11,7 +11,7 @@ import (
 // the first concrete (non-inherit) auth block.
 //
 // Order: request → folder ancestors (leaf → root) → collection.
-// Behaviour:
+// Behavior:
 //   - if the request's own auth block is non-inherit, return it
 //   - otherwise, walk parent folders (their folder.bru auth blocks)
 //   - finally fall back to the collection's auth block

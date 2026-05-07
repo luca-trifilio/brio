@@ -67,7 +67,7 @@ Read-only by design — .bru files are never written.`,
 					return fmt.Errorf("no collections found in Bruno preferences; pass at least one collection path as argument")
 				}
 				paths = discovered
-				fmt.Fprintf(cmd.ErrOrStderr(), "loading collections from Bruno:\n  %s\n\n",
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "loading collections from Bruno:\n  %s\n\n",
 					strings.Join(paths, "\n  "))
 			}
 			var collections []*model.Collection

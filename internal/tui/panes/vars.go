@@ -36,8 +36,8 @@ func NewVars() *VarsModel {
 	return &VarsModel{input: ti}
 }
 
-func (v *VarsModel) Toggle()              { v.Visible = !v.Visible }
-func (v *VarsModel) Editing() bool        { return v.editing }
+func (v *VarsModel) Toggle()       { v.Visible = !v.Visible }
+func (v *VarsModel) Editing() bool { return v.editing }
 
 func (v *VarsModel) Snapshot() map[string]string {
 	out := map[string]string{}

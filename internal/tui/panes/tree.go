@@ -154,10 +154,10 @@ func (t *TreeModel) appendFolder(f *model.Folder, ix, depth int, isRoot bool) {
 		t.appendFolder(sub, ix, depth, false)
 	}
 	for _, r := range f.Requests {
-			if t.BlockedMethods[string(r.Method)] {
-				continue
-			}
-			t.rows = append(t.rows, TreeNode{
+		if t.BlockedMethods[string(r.Method)] {
+			continue
+		}
+		t.rows = append(t.rows, TreeNode{
 			Kind:         NodeRequest,
 			Depth:        depth,
 			Label:        r.Name,
@@ -347,7 +347,6 @@ func (t *TreeModel) View(width, height int, focused bool) string {
 	} else {
 		title = "  " + title
 	}
-
 
 	viewH := t.viewH()
 	// Reserve 1 column on the right for the scrollbar.

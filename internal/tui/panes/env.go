@@ -131,7 +131,7 @@ func (e *EnvModel) View(active string, width int, focused bool) string {
 		icon := theme.EnvTierIcon(n)
 		nameStyle := theme.EnvTierStyle(n)
 
-		// Active bullet inherits the tier colour so it reads as one unit.
+		// Active bullet inherits the tier color so it reads as one unit.
 		activeMarker := "  "
 		if isActive {
 			activeMarker = nameStyle.Render("● ")

@@ -104,7 +104,7 @@ func boxed(content string, w, h int, focused bool) string {
 	return style.Render(content)
 }
 
-// overlay places ov centred over body.
+// overlay places ov centered over body.
 func overlay(body, ov string, w, h int) string {
 	bodyLines := strings.Split(body, "\n")
 	ovLines := strings.Split(ov, "\n")

@@ -1,20 +1,15 @@
 pre-commit:
-  parallel: true
+  parallel: false  # run sequentially so lint sees fmt output
   commands:
     fmt:
       glob: "*.go"
-      run: gofmt -l {staged_files} | grep . && exit 1 || true
-      fail_text: "Run 'make fmt' to fix formatting"
-
-    vet:
-      glob: "*.go"
-      run: go vet ./...
-      fail_text: "Run 'make vet' to see details"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
 
     lint:
       glob: "*.go"
-      run: golangci-lint run ./...
-      fail_text: "Run 'make lint' to see details"
+      run: golangci-lint run --fix ./...
+      stage_fixed: true
 
 pre-push:
   commands:

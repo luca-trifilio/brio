@@ -8,7 +8,7 @@
 [![Go](https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
 [![CI](https://img.shields.io/github/actions/workflow/status/luca-trifilio/brio/release.yml?style=flat-square&label=CI&color=8aadf4)](https://github.com/luca-trifilio/brio/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-c6a0f6?style=flat-square)](LICENSE)
-[![Homebrew](https://img.shields.io/badge/homebrew-luca--trifilio%2Fbrio-f5a97f?style=flat-square&logo=homebrew&logoColor=white)](https://github.com/luca-trifilio/homebrew-brio)
+[![Homebrew](https://img.shields.io/badge/homebrew-luca--trifilio%2Ftap-f5a97f?style=flat-square&logo=homebrew&logoColor=white)](https://github.com/luca-trifilio/homebrew-tap)
 
 </div>
 
@@ -42,7 +42,7 @@ brio reads your `.bru` files directly from disk, executes HTTP requests with ful
 ### Homebrew
 
 ```sh
-brew install luca-trifilio/brio/brio
+brew install luca-trifilio/tap/brio
 ```
 
 ### Go

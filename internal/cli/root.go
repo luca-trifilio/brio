@@ -2,33 +2,60 @@ package cli
 
 import (
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/luca-trifilio/bruno-tui/internal/brunoprefs"
-	"github.com/luca-trifilio/bruno-tui/internal/history"
-	"github.com/luca-trifilio/bruno-tui/internal/model"
-	"github.com/luca-trifilio/bruno-tui/internal/tui"
+	"github.com/luca-trifilio/brio/internal/brunoprefs"
+	"github.com/luca-trifilio/brio/internal/history"
+	"github.com/luca-trifilio/brio/internal/model"
+	"github.com/luca-trifilio/brio/internal/tui"
 )
 
-// version is set at build time via -ldflags.
-var version = "dev"
+// Build metadata injected at link time by GoReleaser:
+//
+//	-X github.com/luca-trifilio/brio/internal/cli.version=x.y.z
+//	-X github.com/luca-trifilio/brio/internal/cli.commit=abc1234
+//	-X github.com/luca-trifilio/brio/internal/cli.date=2026-05-07T12:00:00Z
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+func init() {
+	// When installed via `go install` without ldflags (e.g. from a tagged
+	// module), read the version embedded by the Go toolchain in the binary.
+	if version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "(devel)" {
+			version = info.Main.Version
+		}
+	}
+}
+
+// buildVersion returns the full version string shown by --version.
+func buildVersion() string {
+	if commit == "none" && date == "unknown" {
+		return version
+	}
+	return fmt.Sprintf("%s (commit %s, built %s)", version, commit, date)
+}
 
 // NewRootCmd builds the top-level cobra command.
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "bruno-tui [COLLECTION_PATH...]",
+		Use:   "brio [COLLECTION_PATH...]",
 		Short: "A vim-style TUI for Bruno API collections",
-		Long: `bruno-tui opens one or more Bruno v1 collection directories,
+		Long: `brio opens one or more Bruno v1 collection directories,
 renders them in a vim-style modal TUI, and executes HTTP requests with
 full variable interpolation, AWS SigV4 signing, environment switching,
 and history.
 
-MVP is execute-only — .bru files are read but never written.`,
+Read-only by design — .bru files are never written.`,
 		Args:    cobra.ArbitraryArgs,
-		Version: version,
+		Version: buildVersion(),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			paths := args
 			if len(paths) == 0 {

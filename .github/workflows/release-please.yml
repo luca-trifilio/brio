@@ -1,0 +1,33 @@
+name: Release Please
+
+# Runs on every push to main.
+# Analyses conventional commits since the last release, opens (or updates)
+# a "Release PR" that bumps .release-please-manifest.json and CHANGELOG.md.
+#
+# IMPORTANT: uses RELEASE_PLEASE_TOKEN (a PAT) — NOT GITHUB_TOKEN.
+# If GITHUB_TOKEN were used, the tag it creates would NOT trigger release.yml,
+# because GitHub silently ignores workflow events triggered by GITHUB_TOKEN.
+# See: https://github.com/googleapis/release-please-action#workflow-permissions
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write       # create tags & commits on the release PR
+  pull-requests: write  # open/update the Release PR
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name:        ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          token:         ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file:   release-please-config.json
+          manifest-file: .release-please-manifest.json

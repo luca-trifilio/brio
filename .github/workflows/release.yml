@@ -1,33 +1,93 @@
-name: release
+name: Release
+
+# Triggered by tags created by release-please (v*).
+# Pipeline: test → goreleaser (sign + sbom + homebrew tap)
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v[0-9]+.[0-9]+.[0-9]+"        # stable: v1.2.3
+      - "v[0-9]+.[0-9]+.[0-9]+-*"      # pre-release: v1.2.3-beta.1
 
 permissions:
-  contents: write
+  contents: write   # create GitHub release + upload assets
+  id-token: write   # cosign OIDC keyless signing
 
 jobs:
-  goreleaser:
+  # ── Gate: tests must pass before we publish anything ─────────────────────────
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test -race ./...
+
+  # ── GoReleaser ────────────────────────────────────────────────────────────────
+  goreleaser:
+    name: GoReleaser
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so GoReleaser can build the changelog
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # cosign for keyless artifact signing (OIDC, no long-lived key required)
+      - uses: sigstore/cosign-installer@v3
+
+      # syft for SBOM generation
+      - uses: anchore/sbom-action/download-syft@v0
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: "~> v2"
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          GITHUB_TOKEN:               ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN:  ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          COSIGN_EXPERIMENTAL:        "1"
+
+  # ── Post-release: verify the published checksum signature ─────────────────────
+  verify:
+    name: Verify signature
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG:      ${{ github.ref_name }}
+        run: |
+          gh release download "$TAG" \
+            --repo "${{ github.repository }}" \
+            --pattern "checksums.txt" \
+            --pattern "checksums.txt.sig" \
+            --pattern "checksums.txt.pem"
+
+      - name: Verify checksums signature
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          cosign verify-blob \
+            --signature  checksums.txt.sig \
+            --certificate checksums.txt.pem \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${TAG}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            checksums.txt
+          echo "✓ Checksum signature verified"

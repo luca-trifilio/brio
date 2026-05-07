@@ -1,0 +1,18 @@
+# CODEOWNERS — defines who must review changes to specific paths.
+# GitHub automatically requests review from the relevant owner(s) when a PR
+# touches a file in that path.
+#
+# Rules are evaluated top-to-bottom; the last matching rule wins.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: all changes require review by the maintainer
+*                          @luca-trifilio
+
+# Security-sensitive subsystems need extra scrutiny
+/internal/httpx/           @luca-trifilio
+/internal/interp/          @luca-trifilio
+
+# Infra / release pipeline changes
+/.github/                  @luca-trifilio
+/.goreleaser.yaml          @luca-trifilio
+/release-please-config.json @luca-trifilio

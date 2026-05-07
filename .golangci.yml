@@ -28,11 +28,14 @@ linters:
       scope: toplevel
       period: true
 
-issues:
-  exclude-rules:
+exclusions:
+  rules:
     # Test files get a relaxed set — errcheck false-positives on t.Setenv etc.,
     # noctx is not meaningful in tests, godot is noisy on test helper comments.
     - path: _test\.go
       linters: [errcheck, noctx, godot]
-  max-issues-per-linter: 0
-  max-same-issues: 0
+
+output:
+  issues:
+    max-issues-per-linter: 0
+    max-same-issues: 0

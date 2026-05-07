@@ -27,6 +27,7 @@ go.work.sum
 
 # Pi / Claude local config (skills, tasks — machine-local only)
 .claude/
+.pi/
 
 # Editor
 .DS_Store

@@ -2,7 +2,10 @@ package tui
 
 import (
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,7 +44,11 @@ func resolveRequest(c *model.Collection, env *model.Environment, req *model.Requ
 		})
 	}
 	if req.Body.Raw != "" {
-		out.Body = []byte(scope.Interpolate(req.Body.Raw))
+		body := scope.Interpolate(req.Body.Raw)
+		if req.Body.Type == "json" {
+			body = stripJSONComments(body)
+		}
+		out.Body = []byte(body)
 	}
 	auth := interp.ResolveAuth(c, req)
 	out.AuthMode = string(auth.Mode)
@@ -59,32 +66,51 @@ func resolveRequest(c *model.Collection, env *model.Environment, req *model.Requ
 
 // executeMsg is sent when an HTTP request completes.
 type executeMsg struct {
-	Resp        httpx.Response
-	Resolved    httpx.ResolvedRequest
-	Collection  *model.Collection
-	Request     *model.Request
-	Environment string
+	Resp          httpx.Response
+	Resolved      httpx.ResolvedRequest
+	Collection    *model.Collection
+	Request       *model.Request
+	Environment   string
+	ExtractedVars map[string]string // vars captured from script:post-response
 }
 
 // errMsg is for non-HTTP errors surfaced to the status line.
 type errMsg struct{ Err error }
 
+// editorDoneMsg is sent after the external editor process exits.
+type editorDoneMsg struct{ CollectionPath string }
+
 // runRequestCmd returns a tea.Cmd that runs the request asynchronously.
 func runRequestCmd(c *model.Collection, env *model.Environment, req *model.Request, runtime map[string]string) tea.Cmd {
 	return func() tea.Msg {
-		resolved, _ := resolveRequest(c, env, req, runtime)
+		// Run pre-request scripts (e.g. uuid generation) and merge into runtime.
+		// User's explicit runtime overrides always win.
+		preVars := interp.CollectPreRequestVars(c, req)
+		merged := make(map[string]string, len(preVars)+len(runtime))
+		for k, v := range preVars {
+			merged[k] = v
+		}
+		for k, v := range runtime {
+			merged[k] = v // runtime overrides script-generated values
+		}
+		resolved, _ := resolveRequest(c, env, req, merged)
 		ex := httpx.NewExecutor()
 		resp := ex.Execute(resolved)
 		envName := ""
 		if env != nil {
 			envName = env.Name
 		}
+		var extracted map[string]string
+		if req.PostResponseScript != "" && resp.Err == nil {
+			extracted = interp.RunPostResponseScript(req.PostResponseScript, resp.Body)
+		}
 		return executeMsg{
-			Resp:        resp,
-			Resolved:    resolved,
-			Collection:  c,
-			Request:     req,
-			Environment: envName,
+			Resp:          resp,
+			Resolved:      resolved,
+			Collection:    c,
+			Request:       req,
+			Environment:   envName,
+			ExtractedVars: extracted,
 		}
 	}
 }
@@ -126,6 +152,81 @@ func historyEntryFromExecute(m executeMsg) history.Entry {
 		Error:           errStr,
 		Headers:         headers,
 	}
+}
+
+// openEnvInEditor suspends the TUI, launches $EDITOR (fallback: vi) on envPath,
+// then resumes. On return it sends editorDoneMsg so the caller can reload.
+func openEnvInEditor(envPath, collectionPath string) tea.Cmd {
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+	}
+	if editor == "" {
+		editor = "vi"
+	}
+	c := exec.Command(editor, envPath) //nolint:gosec
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return editorDoneMsg{CollectionPath: collectionPath}
+	})
+}
+
+// stripJSONComments removes // line comments and /* block comments */ from s
+// without touching content inside double-quoted strings.
+// Bruno allows JS-style comments in body:json blocks; the server does not.
+func stripJSONComments(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inStr := false
+	esc := false
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		if esc {
+			esc = false
+			b.WriteByte(c)
+			i++
+			continue
+		}
+		if inStr {
+			if c == '\\' {
+				esc = true
+			} else if c == '"' {
+				inStr = false
+			}
+			b.WriteByte(c)
+			i++
+			continue
+		}
+		// Outside a string.
+		if c == '"' {
+			inStr = true
+			b.WriteByte(c)
+			i++
+			continue
+		}
+		// // line comment — skip to end of line.
+		if c == '/' && i+1 < len(s) && s[i+1] == '/' {
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		// /* block comment */ — skip to closing */.
+		if c == '/' && i+1 < len(s) && s[i+1] == '*' {
+			i += 2
+			for i < len(s) {
+				if s[i] == '*' && i+1 < len(s) && s[i+1] == '/' {
+					i += 2
+					break
+				}
+				i++
+			}
+			continue
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String()
 }
 
 func collectionDir(c *model.Collection) string {

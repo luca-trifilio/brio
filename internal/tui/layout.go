@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/luca-trifilio/bruno-tui/internal/tui/panes"
+	"github.com/luca-trifilio/bruno-tui/internal/theme"
 )
 
 // renderLayout assembles the final view from the model state.
@@ -36,33 +36,36 @@ func (m *Model) renderLayout() string {
 		rightW = 20
 	}
 
-	envHeight := 6
-	treeHeight := bodyHeight - envHeight
-	if treeHeight < 5 {
-		treeHeight = 5
+	// Left sidebar: tree on top, env pane at the bottom.
+	envH := 8
+	if bodyHeight/4 > envH {
+		envH = bodyHeight / 4
 	}
+	treeH := bodyHeight - envH
 
-	tree := m.tree.View(sidebarW-2, treeHeight, m.focused == PaneTree)
-	env := panes.RenderEnv(m.activeCollection(), m.activeEnvName(), sidebarW-2, m.focused == PaneEnv)
-
-	sidebar := lipgloss.JoinVertical(lipgloss.Left,
-		boxed(tree, sidebarW, treeHeight, m.focused == PaneTree),
-		boxed(env, sidebarW, envHeight, m.focused == PaneEnv),
-	)
-
-	// Right side: top = request, bottom = response.
+	// Right side: top half = Request, bottom half = Response (full width).
 	reqHeight := bodyHeight / 2
 	respHeight := bodyHeight - reqHeight
 
-	var reqView, respView string
-	sel, _ := m.tree.Selected()
-	scope := m.scopeForSelected()
-	if sel.Request != nil {
-		reqView = panes.RenderRequest(sel.Request, scope, rightW-4, reqHeight-2, m.focused == PaneRequest)
-	} else {
-		reqView = panes.RenderRequest(nil, nil, rightW-4, reqHeight-2, m.focused == PaneRequest)
+	// Cache geometry for mouse hit-testing.
+	m.geom = paneGeometry{
+		sidebarW:  sidebarW,
+		treeH:     treeH,
+		envH:      envH,
+		reqHeight: reqHeight,
 	}
-	respView = panes.RenderResponse(m.lastResp, rightW-4, respHeight-2, m.focused == PaneResponse)
+
+	treeView := m.tree.View(sidebarW-2, treeH-2, m.focused == PaneTree)
+	envView := m.env.View(m.activeEnvName(), sidebarW-4, m.focused == PaneEnv)
+	sidebar := lipgloss.JoinVertical(lipgloss.Left,
+		boxed(treeView, sidebarW, treeH, m.focused == PaneTree),
+		boxed(envView, sidebarW, envH, m.focused == PaneEnv),
+	)
+
+	var reqView, respView string
+	req, scope := m.activeRequestAndScope()
+	reqView = m.request.View(req, scope, m.activeEnvName(), rightW-4, reqHeight-2, m.focused == PaneRequest)
+	respView = m.response.View(rightW-4, respHeight-2, m.focused == PaneResponse)
 
 	right := lipgloss.JoinVertical(lipgloss.Left,
 		boxed(reqView, rightW, reqHeight, m.focused == PaneRequest),
@@ -80,14 +83,18 @@ func (m *Model) renderLayout() string {
 		v := m.vars.View(50)
 		body = overlay(body, v, m.width, m.height)
 	}
+	if m.help.Visible {
+		h := m.help.View(m.width/3, m.height-4)
+		body = overlayBottomRight(body, h, m.width, m.height)
+	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, statusBar, body, cmdLine)
 }
 
 func boxed(content string, w, h int, focused bool) string {
-	color := lipgloss.Color("240")
+	color := theme.BorderUnfocused
 	if focused {
-		color = lipgloss.Color("12")
+		color = theme.BorderFocused
 	}
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -97,11 +104,8 @@ func boxed(content string, w, h int, focused bool) string {
 	return style.Render(content)
 }
 
-// overlay places overlay roughly centred on body. Simple approximation: returns
-// body with overlay block appended at the top, since true overlay is hard
-// without a full terminal compositor.
+// overlay places ov centred over body.
 func overlay(body, ov string, w, h int) string {
-	// Place overlay near the top — split body and replace top rows.
 	bodyLines := strings.Split(body, "\n")
 	ovLines := strings.Split(ov, "\n")
 	startRow := (h - len(ovLines)) / 2
@@ -113,9 +117,33 @@ func overlay(body, ov string, w, h int) string {
 		if row < 0 || row >= len(bodyLines) {
 			continue
 		}
-		// Centre column.
 		ovWidth := lipgloss.Width(ovl)
 		col := (w - ovWidth) / 2
+		if col < 0 {
+			col = 0
+		}
+		bodyLines[row] = mergeLine(bodyLines[row], ovl, col, w)
+	}
+	return strings.Join(bodyLines, "\n")
+}
+
+// overlayBottomRight places ov in the bottom-right corner of body,
+// leaving a 1-line gap above the command line (h already excludes it).
+func overlayBottomRight(body, ov string, w, h int) string {
+	bodyLines := strings.Split(body, "\n")
+	ovLines := strings.Split(ov, "\n")
+	// Pin the bottom of the modal to the last body row (command line is outside body).
+	startRow := len(bodyLines) - len(ovLines)
+	if startRow < 0 {
+		startRow = 0
+	}
+	for i, ovl := range ovLines {
+		row := startRow + i
+		if row < 0 || row >= len(bodyLines) {
+			continue
+		}
+		ovWidth := lipgloss.Width(ovl)
+		col := w - ovWidth
 		if col < 0 {
 			col = 0
 		}

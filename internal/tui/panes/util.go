@@ -1,23 +1,32 @@
 package panes
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
-// truncate trims s to fit within width display columns.
+// truncate trims s to fit within width display columns, preserving ANSI codes.
 func truncate(s string, width int) string {
 	if width <= 0 {
 		return s
 	}
-	if lipgloss.Width(s) <= width {
+	return ansi.Truncate(s, width, "…")
+}
+
+// pad truncates s to width columns and then right-pads with spaces so the
+// returned string always occupies exactly width display columns. ANSI escape
+// codes are counted correctly (they have zero display width).
+func pad(s string, width int) string {
+	if width <= 0 {
 		return s
 	}
-	// Naive truncate to width-1 then add ellipsis.
-	runes := []rune(s)
-	for len(runes) > 0 && lipgloss.Width(string(runes))+1 > width {
-		runes = runes[:len(runes)-1]
+	s = ansi.Truncate(s, width, "…")
+	visual := ansi.StringWidth(s)
+	if visual < width {
+		s += strings.Repeat(" ", width-visual)
 	}
-	return string(runes) + "…"
+	return s
 }
 
 // stripStyle removes ANSI escape sequences from s.

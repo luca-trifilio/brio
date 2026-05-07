@@ -11,11 +11,12 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/luca-trifilio/bruno-tui/internal/history"
-	"github.com/luca-trifilio/bruno-tui/internal/httpx"
 	"github.com/luca-trifilio/bruno-tui/internal/interp"
 	"github.com/luca-trifilio/bruno-tui/internal/model"
+	"github.com/luca-trifilio/bruno-tui/internal/theme"
 	"github.com/luca-trifilio/bruno-tui/internal/tui/panes"
 	"github.com/luca-trifilio/bruno-tui/internal/util"
 )
@@ -24,12 +25,14 @@ import (
 type Model struct {
 	collections []*model.Collection
 	tree        *panes.TreeModel
+	env         *panes.EnvModel
 	vars        *panes.VarsModel
 	history     panes.HistoryModel
 
 	mode    Mode
 	focused Pane
 	keymap  KeyMap
+	request *panes.RequestModel
 
 	width, height int
 
@@ -42,8 +45,23 @@ type Model struct {
 	statusLn string
 
 	historyStore *history.Store
-	lastResp     *httpx.Response
-	pendingYank  bool // for two-key yc binding
+	response     *panes.ResponseModel
+	help         panes.HelpModel
+	pendingYank    bool // for two-key yc binding
+	pendingG       bool // for two-key gg binding
+	activeRequest  *model.Request // last executed request (may differ from tree selection)
+	activeScope    *interp.VarScope
+
+	// Layout geometry — updated on every View so mouse hit-testing is accurate.
+	geom paneGeometry
+}
+
+// paneGeometry caches the screen-coordinate boundaries of each pane.
+type paneGeometry struct {
+	sidebarW  int // total column width of the sidebar (including border)
+	treeH     int // total row height of the tree box (including border)
+	envH      int // total row height of the env box (including border)
+	reqHeight int // total row height of the request box (including border)
 }
 
 // NewModel constructs the TUI with one or more loaded collections.
@@ -56,11 +74,20 @@ func NewModel(collections []*model.Collection, store *history.Store) *Model {
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	sp.Style = lipgloss.NewStyle().Foreground(theme.Yellow)
+
+	var firstColl *model.Collection
+	if len(collections) > 0 {
+		firstColl = collections[0]
+	}
+	envModel := panes.NewEnv(firstColl)
 
 	m := &Model{
 		collections:  collections,
 		tree:         tree,
+		env:          envModel,
+		response:     panes.NewResponse(),
+		request:      panes.NewRequest(),
 		vars:         panes.NewVars(),
 		mode:         ModeNormal,
 		focused:      PaneTree,
@@ -77,10 +104,12 @@ func NewModel(collections []*model.Collection, store *history.Store) *Model {
 			for n := range c.Environments {
 				names = append(names, n)
 			}
-			sort.Strings(names)
+			panes.SortEnvNames(names)
 			m.activeEnvs[c.Path] = names[0]
 		}
 	}
+	// Apply blocked-methods filter for the initial active env.
+	m.syncBlockedMethods()
 	return m
 }
 
@@ -104,12 +133,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case executeMsg:
 		m.loading = false
 		r := msg.Resp
-		m.lastResp = &r
 		if msg.Resp.Err != nil {
 			m.statusLn = "error: " + msg.Resp.Err.Error()
 		} else {
 			m.statusLn = fmt.Sprintf("%s in %s", msg.Resp.Status, msg.Resp.Elapsed.Round(1e6))
+			if len(msg.ExtractedVars) > 0 {
+				for k, v := range msg.ExtractedVars {
+					m.vars.Set(k, v)
+				}
+				keys := make([]string, 0, len(msg.ExtractedVars))
+				for k := range msg.ExtractedVars {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				m.statusLn += "  ·  set " + strings.Join(keys, ", ")
+			}
 		}
+		m.response.SetResponse(&r, &msg.Resolved, 0, 0) // dimensions filled on next View call
 		if m.historyStore != nil {
 			_ = m.historyStore.Append(historyEntryFromExecute(msg))
 		}
@@ -117,8 +157,114 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.statusLn = "error: " + msg.Err.Error()
 		return m, nil
+	case editorDoneMsg:
+		// Reload the collection whose env file was edited.
+		for i, c := range m.collections {
+			if c.Path == msg.CollectionPath {
+				if reloaded, err := model.LoadCollection(c.Path); err == nil {
+					m.collections[i] = reloaded
+					m.syncEnvPane()
+				} else {
+					m.statusLn = "reload error: " + err.Error()
+				}
+				break
+			}
+		}
+		return m, nil
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	}
+	return m, nil
+}
+
+// handleMouse dispatches mouse events to the appropriate pane.
+func (m *Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Modals absorb all mouse input.
+	if m.help.Visible || m.history.Visible || m.vars.Visible {
+		return m, nil
+	}
+
+	x, y := msg.X, msg.Y
+	g := m.geom
+
+	// Determine which pane the cursor is over.
+	// Row 0 = status bar, rows 1..bodyH = body, last row = cmd line.
+	bodyY := y - 1 // 0-indexed within the body region
+
+	var hovered Pane
+	switch {
+	case x < g.sidebarW && bodyY >= 0 && bodyY < g.treeH:
+		hovered = PaneTree
+	case x < g.sidebarW && bodyY >= g.treeH:
+		hovered = PaneEnv
+	case x >= g.sidebarW && bodyY >= 0 && bodyY < g.reqHeight:
+		hovered = PaneRequest
+	case x >= g.sidebarW && bodyY >= g.reqHeight:
+		hovered = PaneResponse
+	default:
+		return m, nil
+	}
+
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		m.focused = hovered
+		switch hovered {
+		case PaneTree:
+			m.tree.Up()
+			m.syncEnvPane()
+		case PaneEnv:
+			m.env.Up()
+		case PaneRequest:
+			m.request.HandleKey("k")
+		case PaneResponse:
+			m.response.HandleKey("k")
+		}
+
+	case tea.MouseButtonWheelDown:
+		m.focused = hovered
+		switch hovered {
+		case PaneTree:
+			m.tree.Down()
+			m.syncEnvPane()
+		case PaneEnv:
+			m.env.Down()
+		case PaneRequest:
+			m.request.HandleKey("j")
+		case PaneResponse:
+			m.response.HandleKey("j")
+		}
+
+	case tea.MouseButtonLeft:
+		if msg.Action != tea.MouseActionPress {
+			return m, nil
+		}
+		m.focused = hovered
+		switch hovered {
+		case PaneTree:
+			// box border top (bodyY=0) + title (1) + separator (2) = content starts at bodyY=3
+			contentY := bodyY - 3
+			if contentY >= 0 {
+				m.tree.SetCursor(m.tree.Offset() + contentY)
+				m.syncEnvPane()
+				// Toggle expand/collapse for collections and folders.
+				if sel, ok := m.tree.Selected(); ok && sel.Expandable {
+					if m.tree.IsExpanded(sel.Path) {
+						m.tree.Collapse()
+					} else {
+						m.tree.Expand()
+					}
+					m.syncEnvPane()
+				}
+			}
+		case PaneEnv:
+			// box border top (treeH) + title (+1) + separator (+1) = content at treeH+3
+			envContentY := bodyY - g.treeH - 3
+			if envContentY >= 0 {
+				m.env.SetCursor(envContentY)
+			}
+		}
 	}
 	return m, nil
 }
@@ -131,6 +277,15 @@ func (m *Model) View() string { return m.renderLayout() }
 // ----------------------------------------------------------------------------
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Help modal absorbs all keys when visible.
+	if m.help.Visible {
+		switch msg.String() {
+		case "esc", "q", "?":
+			m.help.Close()
+		}
+		return m, nil
+	}
+
 	// History modal absorbs keys when visible.
 	if m.history.Visible {
 		switch msg.String() {
@@ -207,17 +362,75 @@ func (m *Model) handleInsertKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
 
-	// Two-key yc.
+	// ── Two-key gg: jump to top in response / request / tree ─────────────────
+	if m.pendingG {
+		m.pendingG = false
+		if s == "g" {
+			switch m.focused {
+			case PaneResponse:
+				m.response.HandleKey("g")
+			case PaneRequest:
+				m.request.HandleKey("g")
+			case PaneTree:
+				m.tree.Top()
+				m.syncEnvPane()
+			}
+		}
+		// Always consume the second key of the sequence.
+		return m, nil
+	}
+
+	// ── Two-key yc: copy as curl ──────────────────────────────────────────────
 	if m.pendingYank {
 		m.pendingYank = false
 		if s == "c" {
 			return m.copyCurl()
 		}
-		// Fall through.
+		// Not yc — discard the pending yank and fall through.
 	}
 
+	// ── Response pane: forward all vim motions ────────────────────────────────
+	if m.focused == PaneResponse {
+		// While typing a search or leap query, all keys go to the response model.
+		if m.response.Searching() {
+			m.response.HandleKey(s)
+			return m, nil
+		}
+		switch s {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+		if m.response.HandleKey(s) {
+			if yanked := m.response.TakeYanked(); yanked != "" {
+				if err := clipboard.WriteAll(yanked); err != nil {
+					m.statusLn = "clipboard: " + err.Error()
+				} else {
+					m.statusLn = fmt.Sprintf("yanked %d lines", strings.Count(yanked, "\n"))
+				}
+			}
+			return m, nil
+		}
+		// Non-motion keys fall through to the global switch below.
+	}
+
+	// ── Request pane: forward vim motions ────────────────────────────────────
+	if m.focused == PaneRequest {
+		switch s {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+		if m.request.HandleKey(s) {
+			return m, nil
+		}
+		// Non-motion keys fall through.
+	}
+
+	// ── Global / pane-specific keys ───────────────────────────────────────────
 	switch s {
-	case "ctrl+c":
+	case "?":
+		m.help.Open(m.helpSections())
+		return m, nil
+	case "ctrl+c", "q":
 		return m, tea.Quit
 	case ":":
 		m.mode = ModeCommand
@@ -226,22 +439,63 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "tab":
 		m.focused = nextPane(m.focused)
+		m.syncEnvPane()
 		return m, nil
 	case "shift+tab":
 		m.focused = prevPane(m.focused)
+		m.syncEnvPane()
 		return m, nil
+
+	// Vertical motion — tree / env only; response/request handled above.
 	case "j", "down":
 		switch m.focused {
 		case PaneTree:
 			m.tree.Down()
+			m.syncEnvPane()
+		case PaneEnv:
+			m.env.Down()
 		}
 		return m, nil
 	case "k", "up":
 		switch m.focused {
 		case PaneTree:
 			m.tree.Up()
+			m.syncEnvPane()
+		case PaneEnv:
+			m.env.Up()
 		}
 		return m, nil
+
+	// Half-page scroll — tree only (response/request handled by their HandleKey).
+	case "d", "ctrl+d":
+		if m.focused == PaneTree {
+			m.tree.HalfPageDown()
+			m.syncEnvPane()
+		}
+		return m, nil
+	case "u", "ctrl+u":
+		if m.focused == PaneTree {
+			m.tree.HalfPageUp()
+			m.syncEnvPane()
+		}
+		return m, nil
+
+	// Jump to bottom — tree only; response/request handled by HandleKey.
+	case "G":
+		if m.focused == PaneTree {
+			m.tree.Bottom()
+			m.syncEnvPane()
+		}
+		return m, nil
+
+	// First key of gg — arm pending flag for all scrollable panes.
+	case "g":
+		switch m.focused {
+		case PaneResponse, PaneRequest, PaneTree:
+			m.pendingG = true
+		}
+		return m, nil
+
 	case "l", "right":
 		if m.focused == PaneTree {
 			m.tree.Expand()
@@ -252,7 +506,14 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.tree.Collapse()
 		}
 		return m, nil
+	case "e":
+		if m.focused == PaneEnv {
+			return m.openActiveEnvFile()
+		}
 	case "enter":
+		if m.focused == PaneEnv {
+			return m.selectEnv()
+		}
 		return m.executeSelected()
 	case "V":
 		m.vars.Toggle()
@@ -262,8 +523,44 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y":
 		m.pendingYank = true
 		return m, nil
+
+	// ── Env cycling: ] = next env, [ = prev env ───────────────────────────────
+	case "]":
+		m.cycleEnv(+1)
+		return m, nil
+	case "[":
+		m.cycleEnv(-1)
+		return m, nil
 	}
 	return m, nil
+}
+
+// cycleEnv steps through the active collection's environments in the given
+// direction (+1 = forward, -1 = backward), wrapping around.
+func (m *Model) cycleEnv(dir int) {
+	c := m.activeCollection()
+	if c == nil {
+		return
+	}
+	names := m.env.Names()
+	if len(names) == 0 {
+		m.statusLn = "no environments in this collection"
+		return
+	}
+	cur := m.activeEnvs[c.Path]
+	idx := 0
+	for i, n := range names {
+		if n == cur {
+			idx = i
+			break
+		}
+	}
+	idx = (idx + dir + len(names)) % len(names)
+	newName := names[idx]
+	m.activeEnvs[c.Path] = newName
+	m.env.SyncCursor(newName)
+	m.syncBlockedMethods()
+	m.statusLn = "env \u2192 " + newName
 }
 
 // ----------------------------------------------------------------------------
@@ -293,6 +590,8 @@ func (m *Model) runCommand(input string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.activeEnvs[c.Path] = parts[1]
+		m.env.SyncCursor(parts[1])
+		m.syncBlockedMethods()
 		m.statusLn = "env → " + parts[1]
 		return m, nil
 	case "set":
@@ -320,14 +619,57 @@ func (m *Model) runCommand(input string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) openActiveEnvFile() (tea.Model, tea.Cmd) {
+	name, ok := m.env.Selected()
+	if !ok {
+		m.statusLn = "no environment selected"
+		return m, nil
+	}
+	c := m.activeCollection()
+	if c == nil {
+		m.statusLn = "no collection selected"
+		return m, nil
+	}
+	env, exists := c.Environments[name]
+	if !exists {
+		m.statusLn = "unknown env: " + name
+		return m, nil
+	}
+	return m, openEnvInEditor(env.Path, c.Path)
+}
+
+func (m *Model) selectEnv() (tea.Model, tea.Cmd) {
+	name, ok := m.env.Selected()
+	if !ok {
+		return m, nil
+	}
+	c := m.activeCollection()
+	if c == nil {
+		return m, nil
+	}
+	if _, exists := c.Environments[name]; !exists {
+		m.statusLn = "unknown env: " + name
+		return m, nil
+	}
+	m.activeEnvs[c.Path] = name
+	m.statusLn = "env → " + name
+	return m, nil
+}
+
 func (m *Model) executeSelected() (tea.Model, tea.Cmd) {
 	sel, ok := m.tree.Selected()
 	if !ok || sel.Request == nil {
 		m.statusLn = "no request selected"
 		return m, nil
 	}
+	if theme.IsMutatingMethod(string(sel.Request.Method)) && theme.MutatingMethodsBlocked(m.activeEnvName()) {
+		m.statusLn = "⚠ " + string(sel.Request.Method) + " blocked in production"
+		return m, nil
+	}
 	c := m.collectionFor(sel.CollectionIx)
 	env := m.envFor(c)
+	m.activeRequest = nil
+	m.activeScope = nil
 	m.loading = true
 	m.statusLn = "running…"
 	cmd := tea.Batch(
@@ -354,7 +696,7 @@ func (m *Model) openHistory() (tea.Model, tea.Cmd) {
 func (m *Model) replayHistory(e history.Entry) (tea.Model, tea.Cmd) {
 	m.history.Close()
 	// Find a request matching the saved path.
-	for ix, c := range m.collections {
+	for _, c := range m.collections {
 		for _, r := range c.AllRequests() {
 			if r.SourcePath == e.RequestPath {
 				env := m.envFor(c)
@@ -363,7 +705,14 @@ func (m *Model) replayHistory(e history.Entry) (tea.Model, tea.Cmd) {
 						env = envObj
 					}
 				}
-				_ = ix
+				if theme.IsMutatingMethod(string(r.Method)) && theme.MutatingMethodsBlocked(m.activeEnvName()) {
+					m.history.Close()
+					m.statusLn = "⚠ " + string(r.Method) + " blocked — switch env to replay"
+					return m, nil
+				}
+				_, scope := resolveRequest(c, env, r, m.vars.Snapshot())
+				m.activeRequest = r
+				m.activeScope = scope
 				m.loading = true
 				m.statusLn = "replaying…"
 				return m, tea.Batch(
@@ -398,6 +747,42 @@ func (m *Model) copyCurl() (tea.Model, tea.Cmd) {
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
+
+func (m *Model) helpSections() []panes.HelpSection {
+	switch m.focused {
+	case PaneTree:
+		return append(panes.TreeSections(), panes.GlobalSections()...)
+	case PaneEnv:
+		return append(panes.EnvSections(), panes.GlobalSections()...)
+	case PaneResponse:
+		return append(panes.ResponseSections(), panes.GlobalSections()...)
+	case PaneRequest:
+		return append(panes.RequestSections(), panes.GlobalSections()...)
+	default:
+		return panes.GlobalSections()
+	}
+}
+
+// syncEnvPane rebuilds the env model for the currently active collection.
+// Call whenever the selected collection may have changed.
+func (m *Model) syncEnvPane() {
+	c := m.activeCollection()
+	m.env.SetCollection(c)
+	if c != nil {
+		m.env.SyncCursor(m.activeEnvs[c.Path])
+	}
+	m.syncBlockedMethods()
+}
+
+// syncBlockedMethods updates the tree's blocked-method filter to match the
+// current active environment's safety tier.
+func (m *Model) syncBlockedMethods() {
+	if theme.MutatingMethodsBlocked(m.activeEnvName()) {
+		m.tree.SetBlockedMethods(map[string]bool{"POST": true, "PUT": true, "PATCH": true})
+	} else {
+		m.tree.SetBlockedMethods(nil)
+	}
+}
 
 func (m *Model) activeCollection() *model.Collection {
 	sel, ok := m.tree.Selected()
@@ -447,48 +832,96 @@ func (m *Model) scopeForSelected() *interp.VarScope {
 	return scope
 }
 
+// activeRequestAndScope returns the request and scope to display in the request
+// pane. When a history replay set an explicit active request, that takes
+// precedence over the tree selection.
+func (m *Model) activeRequestAndScope() (*model.Request, *interp.VarScope) {
+	if m.activeRequest != nil {
+		return m.activeRequest, m.activeScope
+	}
+	sel, ok := m.tree.Selected()
+	if !ok || sel.Request == nil {
+		return nil, nil
+	}
+	c := m.collectionFor(sel.CollectionIx)
+	env := m.envFor(c)
+	_, scope := resolveRequest(c, env, sel.Request, m.vars.Snapshot())
+	return sel.Request, scope
+}
+
 // ----------------------------------------------------------------------------
 // Status / command line rendering
 // ----------------------------------------------------------------------------
 
 func (m *Model) renderStatusBar() string {
-	style := lipgloss.NewStyle().
-		Background(lipgloss.Color("236")).
-		Foreground(lipgloss.Color("15")).
-		Padding(0, 1).
-		Width(m.width)
-	modeStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11"))
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	c := m.activeCollection()
 	collName := ""
 	if c != nil {
-		collName = c.DisplayName()
+		collName = theme.StyleText.Render(c.DisplayName())
 	}
-	parts := []string{
-		modeStyle.Render(m.mode.String()),
-		dim.Render(" │ "),
-		collName,
-		dim.Render(" │ env="),
-		m.activeEnvName(),
-	}
-	return style.Render(strings.Join(parts, ""))
+	content := collName + theme.StyleDim.Render(" │ ") + theme.EnvBadge(m.activeEnvName())
+	return theme.StyleStatusBar.Width(m.width).Render(content)
 }
 
 func (m *Model) renderCommandLine() string {
 	if m.mode == ModeCommand {
-		return m.cmd.View()
+		return ansi.Truncate(m.cmd.View(), m.width, "")
 	}
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	left := m.statusLn
+
+	var modeStyle lipgloss.Style
+	var modeLabel string
+	switch {
+	case m.focused == PaneResponse && m.response.InVisual():
+		modeStyle = theme.StyleModeVisual
+		modeLabel = "VISUAL"
+	case m.mode == ModeInsert:
+		modeStyle = theme.StyleModeInsert
+		modeLabel = m.mode.String()
+	case m.mode == ModeCommand:
+		modeStyle = theme.StyleModeCommand
+		modeLabel = m.mode.String()
+	default:
+		modeStyle = theme.StyleModeNormal
+		modeLabel = m.mode.String()
+	}
+	left := modeStyle.Render(modeLabel)
+	leftW := lipgloss.Width(left)
+
+	center := m.statusLn
 	if m.loading {
-		left = m.spinner.View() + " " + left
+		center = m.spinner.View() + " " + center
 	}
-	help := dim.Render(" [j/k move  l/h fold  Enter run  V vars  H history  yc curl  :q quit]")
-	w := m.width - lipgloss.Width(left) - lipgloss.Width(help)
-	if w < 1 {
-		w = 1
+	centerW := lipgloss.Width(center)
+
+	pendingKey := ""
+	if m.pendingYank {
+		pendingKey = "y"
+	} else if m.pendingG {
+		pendingKey = "g"
 	}
-	return left + strings.Repeat(" ", w) + help
+	hint := "? help"
+	if pendingKey != "" {
+		hint = theme.StyleActive.Render(pendingKey) + theme.StyleHint.Render("…  ? help")
+	} else {
+		hint = theme.StyleHint.Render("? help")
+	}
+	right := hint
+	rightW := lipgloss.Width(right)
+
+	remaining := m.width - leftW - rightW
+	if remaining < 1 {
+		return ansi.Truncate(left, m.width, "")
+	}
+	// Center the status within the space between mode and help hint.
+	padLeft := (remaining - centerW) / 2
+	if padLeft < 1 {
+		padLeft = 1
+	}
+	padRight := remaining - centerW - padLeft
+	if padRight < 0 {
+		padRight = 0
+	}
+	return left + strings.Repeat(" ", padLeft) + center + strings.Repeat(" ", padRight) + right
 }
 
 // ----------------------------------------------------------------------------

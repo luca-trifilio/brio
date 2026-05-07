@@ -13,6 +13,9 @@ import (
 // placeholder comment — callers should set credentials via env files.
 func ToCurl(r httpx.ResolvedRequest) string {
 	var b strings.Builder
+	if r.AuthMode == "awsv4" {
+		b.WriteString("# AWS SigV4 auth — set credentials in env file\n")
+	}
 	b.WriteString("curl")
 	method := r.Method
 	if method == "" {
@@ -39,10 +42,6 @@ func ToCurl(r httpx.ResolvedRequest) string {
 		for _, v := range vals {
 			b.WriteString(fmt.Sprintf(" -H %s", shellQuote(name+": "+v)))
 		}
-	}
-
-	if r.AuthMode == "awsv4" {
-		b.WriteString(" \\\n  # AWS SigV4 auth — set credentials in env file")
 	}
 
 	if len(r.Body) > 0 {

@@ -39,6 +39,9 @@ type Request struct {
 	// HasPreRequestScript is true when the file has a `script:pre-request`
 	// block (we don't execute it in MVP; the TUI surfaces a hint).
 	HasPreRequestScript bool
+	// PostResponseScript holds the raw content of a `script:post-response`
+	// block. We support a subset of the Bruno JS API (bru.setVar + res.body).
+	PostResponseScript string
 	// Doc contains the raw parsed AST (kept around for debugging / advanced
 	// resolution).
 	Doc *parser.BruDoc
@@ -128,6 +131,9 @@ func RequestFromDoc(path string, doc *parser.BruDoc) *Request {
 
 	if doc.FindBlock("script", "pre-request") != nil {
 		r.HasPreRequestScript = true
+	}
+	if b := doc.FindBlock("script", "post-response"); b != nil {
+		r.PostResponseScript = b.Raw
 	}
 
 	return r

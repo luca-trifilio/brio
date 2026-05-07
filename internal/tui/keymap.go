@@ -18,6 +18,8 @@ type KeyMap struct {
 	Help        key.Binding
 	Escape      key.Binding
 	History     key.Binding
+	NextEnv     key.Binding
+	PrevEnv     key.Binding
 }
 
 // DefaultKeyMap returns the vim-flavoured defaults.
@@ -37,5 +39,7 @@ func DefaultKeyMap() KeyMap {
 		Help:     key.NewBinding(key.WithKeys("?")),
 		Escape:   key.NewBinding(key.WithKeys("esc")),
 		History:  key.NewBinding(key.WithKeys("H")),
+		NextEnv:  key.NewBinding(key.WithKeys("]"), key.WithHelp("]", "next env")),
+		PrevEnv:  key.NewBinding(key.WithKeys("["), key.WithHelp("[", "prev env")),
 	}
 }

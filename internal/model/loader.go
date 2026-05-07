@@ -48,9 +48,11 @@ func LoadCollection(root string) (*Collection, error) {
 	if doc, err := parser.ParseFile(filepath.Join(abs, "collection.bru")); err == nil {
 		c.CollectionDoc = doc
 		c.CollectionAuth = authFromDoc(doc)
-		if v := doc.FindBlock("vars", ""); v != nil {
-			for _, l := range v.Lines {
-				c.CollectionVars = append(c.CollectionVars, Var{Name: l.Key, Value: l.Value, Disabled: l.Disabled})
+		for _, subtype := range []string{"", "pre-request"} {
+			if v := doc.FindBlock("vars", subtype); v != nil {
+				for _, l := range v.Lines {
+					c.CollectionVars = append(c.CollectionVars, Var{Name: l.Key, Value: l.Value, Disabled: l.Disabled})
+				}
 			}
 		}
 	}
@@ -112,9 +114,11 @@ func loadFolder(f *Folder, skip map[string]bool, isRoot bool) error {
 					}
 				}
 			}
-			if v := doc.FindBlock("vars", ""); v != nil {
-				for _, l := range v.Lines {
-					f.FolderVars = append(f.FolderVars, Var{Name: l.Key, Value: l.Value, Disabled: l.Disabled})
+			for _, subtype := range []string{"", "pre-request"} {
+				if v := doc.FindBlock("vars", subtype); v != nil {
+					for _, l := range v.Lines {
+						f.FolderVars = append(f.FolderVars, Var{Name: l.Key, Value: l.Value, Disabled: l.Disabled})
+					}
 				}
 			}
 		}

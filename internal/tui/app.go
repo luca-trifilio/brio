@@ -348,7 +348,26 @@ func (m *Model) View() string { return m.renderLayout() }
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Settings modal absorbs all keys when visible.
 	if m.showSettings {
+		// Collection editor sub-mode: delegate all keys to the pane.
+		if m.settings.CollEditing() {
+			result, cmd := m.settings.UpdateCollEditor(msg)
+			switch result {
+			case panes.CollEditorSaved:
+				m.cfg.Collections = m.settings.CollPaths()
+				if err := config.Save(m.cfg); err != nil {
+					m.statusLn = "save error: " + err.Error()
+				} else {
+					m.statusLn = "collections saved"
+				}
+			case panes.CollEditorCancelled:
+				// discard — nothing to do
+			}
+			return m, cmd
+		}
+
 		switch msg.String() {
+		case "c":
+			m.settings.EnterCollEditor(m.cfg.Collections)
 		case "e":
 			return m, openConfigInEditor()
 		case "r":

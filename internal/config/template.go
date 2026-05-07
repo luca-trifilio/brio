@@ -5,10 +5,23 @@ package config
 func DefaultTemplate() string {
 	return `# brio configuration
 # ~/.config/brio/config.toml
+
+# ── Collection paths (optional) ──────────────────────────────────────────────
 #
-# Credential refresh hooks fire automatically when an HTTP response matches
-# the trigger conditions. The script runs, credentials are captured, and the
-# original request is retried with the new values injected.
+# If set, brio loads exactly these collections instead of reading Bruno's
+# preferences. ~ and $ENV vars are expanded; non-existent paths are skipped
+# with a warning. Explicit CLI arguments always take priority over this list.
+#
+# collections = [
+#   "~/projects/api-gateway",
+#   "~/projects/payments",
+# ]
+
+# ── Credential refresh hooks ──────────────────────────────────────────────────
+#
+# Hooks fire automatically when an HTTP response matches the trigger conditions.
+# The script runs, credentials are captured, and the original request is
+# retried with the new values injected.
 
 # ── Example: non-interactive stdout hook ─────────────────────────────────────
 #

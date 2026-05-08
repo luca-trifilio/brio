@@ -1,0 +1,46 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bruno-tui
+/brio
+
+# Test binary, built with `go test -c`
+*.test
+
+# Code coverage
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Go workspace
+go.work
+go.work.sum
+
+# Env
+.env
+
+# Distribution
+/dist/
+
+# Local-only directories
+.pi/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Private tooling
+.claude/
+docs/prd-v2-architecture.md
+docs/roadmap.md
+docs/private-sync.md
+docs/bubbletea-architecture.md
+docs/github-project-management.md
+
+# Docs are private
+docs/

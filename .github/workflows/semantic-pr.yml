@@ -1,0 +1,46 @@
+name: Semantic PR
+
+# Validates that every PR title follows Conventional Commits format.
+# This is the critical gate that keeps release-please's commit analysis accurate.
+# When a PR is squash-merged, GitHub uses the PR title as the commit message.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]  # title changes on edited, not on new commits
+
+permissions:
+  pull-requests: read
+  statuses: write
+
+jobs:
+  validate:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Allowed commit types — must stay in sync with release-please-config.json
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            chore
+            ci
+            build
+            revert
+          requireScope: false
+          # Subjects must start lowercase (conventional commits style)
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" in PR title "{title}" must start with
+            a lowercase letter. Try: "{title_lowercased}"
+          # Release PRs opened by release-please are exempt
+          ignoreLabels: |
+            autorelease: pending
+            autorelease: tagged

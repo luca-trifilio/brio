@@ -1,0 +1,19 @@
+meta {
+  name: Create Transaction
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{api_url}}/v1/transactions
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "amount": 100,
+    "currency": "EUR",
+    "recipient": "{{recipient_id}}"
+  }
+}

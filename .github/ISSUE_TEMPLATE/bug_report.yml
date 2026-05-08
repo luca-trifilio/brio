@@ -1,0 +1,81 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["type: bug", "status: needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+        Please fill in as much detail as you can — it helps us fix it faster.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Exact steps to reproduce the behavior.
+      placeholder: |
+        1. Run `brio /path/to/collection`
+        2. Press `...`
+        3. See error / unexpected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened. Paste error messages or stack traces if available.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS — Apple Silicon (arm64)
+        - macOS — Intel (amd64)
+        - Linux — amd64
+        - Linux — arm64
+        - Other (please describe in Additional Context)
+    validations:
+      required: true
+
+  - type: input
+    id: brio-version
+    attributes:
+      label: brio version
+      description: Output of `brio --version`
+      placeholder: "v0.1.0 (commit abc1234, built 2026-05-07T12:00:00Z)"
+    validations:
+      required: true
+
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal
+      description: Terminal emulator and version (e.g. iTerm2 3.5, Ghostty 1.0, kitty 0.35)
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: >
+        Anything else that might be relevant — Bruno collection structure,
+        environment file snippet (redact secrets!), screen recording, etc.

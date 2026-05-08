@@ -1,0 +1,51 @@
+# Auto-labels applied to PRs based on changed files.
+# Consumed by .github/workflows/labeler.yml
+
+"area: parser":
+  - changed-files:
+    - any-glob-to-any-file: "internal/parser/**"
+
+"area: tui":
+  - changed-files:
+    - any-glob-to-any-file: "internal/tui/**"
+
+"area: http":
+  - changed-files:
+    - any-glob-to-any-file: "internal/httpx/**"
+
+"area: interp":
+  - changed-files:
+    - any-glob-to-any-file: "internal/interp/**"
+
+"area: history":
+  - changed-files:
+    - any-glob-to-any-file: "internal/history/**"
+
+"area: model":
+  - changed-files:
+    - any-glob-to-any-file: "internal/model/**"
+    - any-glob-to-any-file: "internal/brunoprefs/**"
+
+"area: cli":
+  - changed-files:
+    - any-glob-to-any-file: "internal/cli/**"
+    - any-glob-to-any-file: "main.go"
+
+"area: ci":
+  - changed-files:
+    - any-glob-to-any-file: ".github/workflows/**"
+    - any-glob-to-any-file: ".github/dependabot.yml"
+    - any-glob-to-any-file: ".goreleaser.yaml"
+    - any-glob-to-any-file: ".golangci.yml"
+    - any-glob-to-any-file: "Makefile"
+    - any-glob-to-any-file: "release-please-config.json"
+
+"area: dependencies":
+  - changed-files:
+    - any-glob-to-any-file: "go.mod"
+    - any-glob-to-any-file: "go.sum"
+
+"area: docs":
+  - changed-files:
+    - any-glob-to-any-file: "**.md"
+    - any-glob-to-any-file: "docs/**"

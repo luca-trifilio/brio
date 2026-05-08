@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/luca-trifilio/brio/compare/v0.2.0...v0.2.1) (2026-05-08)
+
+
+### 🚀 Features
+
+* brio — vim-style TUI for Bruno API collections ([bbf9f24](https://github.com/luca-trifilio/brio/commit/bbf9f24ac4d00477bd819127e6a7d5ea399da70e))
+
 ## [0.2.0](https://github.com/luca-trifilio/brio/compare/v0.1.1...v0.2.0) (2026-05-07)
 
 

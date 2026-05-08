@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2](https://github.com/luca-trifilio/brio/compare/v0.2.1...v0.2.2) (2026-05-08)
+
+### 🚀 Features
+
+* format-agnostic canonical collection model and plugin interface
+* Bruno plugin with autodetect support
+* fuzzy collection picker (gc), jq response filter (|), diagnostics pane (gd)
+* persistent collection paths in config.toml with interactive editor
+
 ## [0.2.0](https://github.com/luca-trifilio/brio/compare/v0.1.1...v0.2.0) (2026-05-07)
 
 

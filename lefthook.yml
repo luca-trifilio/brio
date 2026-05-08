@@ -13,6 +13,8 @@ pre-commit:
 
 pre-push:
   commands:
+    vet:
+      run: go vet ./...
     test:
       run: go test -race ./...
       fail_text: "Run 'make test' to see details"

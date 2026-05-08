@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "read -r json; f=$(echo \"$json\" | jq -r '.tool_input.file_path'); case \"$f\" in *.go) gofmt -w \"$f\" && ~/go/bin/goimports -local github.com/luca-trifilio/brio -w \"$f\" ;; esac 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "Formatting Go file..."
+          }
+        ]
+      }
+    ]
+  }
+}

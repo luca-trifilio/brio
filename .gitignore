@@ -33,14 +33,3 @@ go.work.sum
 .DS_Store
 .idea/
 .vscode/
-
-# Private tooling
-.claude/
-docs/prd-v2-architecture.md
-docs/roadmap.md
-docs/private-sync.md
-docs/bubbletea-architecture.md
-docs/github-project-management.md
-
-# Docs are private
-docs/

@@ -1,8 +1,9 @@
 name: Release Please
 
-# Runs on every push to main.
+# Triggered manually when you decide it's time to cut a release.
 # Analyses conventional commits since the last release, opens (or updates)
 # a "Release PR" that bumps .release-please-manifest.json and CHANGELOG.md.
+# Merging that PR creates the tag, which triggers release.yml (GoReleaser).
 #
 # IMPORTANT: uses RELEASE_PLEASE_TOKEN (a PAT) — NOT GITHUB_TOKEN.
 # If GITHUB_TOKEN were used, the tag it creates would NOT trigger release.yml,
@@ -10,8 +11,7 @@ name: Release Please
 # See: https://github.com/googleapis/release-please-action#workflow-permissions
 
 on:
-  push:
-    branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: write       # create tags & commits on the release PR

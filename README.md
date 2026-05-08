@@ -2,11 +2,13 @@
 
 # brio
 
-**A vim-style TUI for [Bruno](https://www.usebruno.com/) API collections**
+**A vim-style TUI for API collections**
 
 [![Latest Release](https://img.shields.io/github/v/release/luca-trifilio/brio?style=flat-square&color=a6da95)](https://github.com/luca-trifilio/brio/releases/latest)
-[![Go](https://img.shields.io/badge/go-1.22+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
-[![CI](https://img.shields.io/github/actions/workflow/status/luca-trifilio/brio/release.yml?style=flat-square&label=CI&color=8aadf4)](https://github.com/luca-trifilio/brio/actions)
+[![Go](https://img.shields.io/badge/go-1.26+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev/)
+[![CI](https://img.shields.io/github/actions/workflow/status/luca-trifilio/brio/ci.yml?style=flat-square&label=CI&color=8aadf4)](https://github.com/luca-trifilio/brio/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/luca-trifilio/brio?style=flat-square)](https://goreportcard.com/report/github.com/luca-trifilio/brio)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/luca-trifilio/brio/badge)](https://securityscorecards.dev/viewer/?uri=github.com/luca-trifilio/brio)
 [![License: MIT](https://img.shields.io/badge/license-MIT-c6a0f6?style=flat-square)](LICENSE)
 [![Homebrew](https://img.shields.io/badge/homebrew-luca--trifilio%2Ftap-f5a97f?style=flat-square&logo=homebrew&logoColor=white)](https://github.com/luca-trifilio/homebrew-tap)
 
@@ -14,9 +16,9 @@
 
 ---
 
-brio reads your `.bru` files directly from disk, executes HTTP requests with full variable interpolation and AWS SigV4 signing, and supports configurable credential-refresh hooks — all from the terminal.
+brio reads API collections directly from disk, executes HTTP requests with full variable interpolation and AWS SigV4 signing, and supports configurable credential-refresh hooks — all from the terminal. Bruno collections are supported today; Postman and Insomnia are targeted as future plugins.
 
-> **Read-only by design.** brio never writes to your `.bru` files.
+> **Read-only by design.** brio never writes to your collection files.
 
 ---
 

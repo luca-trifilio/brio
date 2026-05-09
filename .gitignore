@@ -36,11 +36,4 @@ go.work.sum
 
 # Private tooling
 .claude/
-docs/prd-v2-architecture.md
-docs/roadmap.md
-docs/private-sync.md
-docs/bubbletea-architecture.md
-docs/github-project-management.md
-
-# Docs are private
 docs/

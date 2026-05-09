@@ -9,19 +9,19 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"        # stable: v1.2.3
       - "v[0-9]+.[0-9]+.[0-9]+-*"      # pre-release: v1.2.3-beta.1
 
-permissions:
-  contents: write   # create GitHub release + upload assets
-  id-token: write   # cosign OIDC keyless signing
+permissions: read-all
 
 jobs:
   # ── Gate: tests must pass before we publish anything ─────────────────────────
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -34,24 +34,27 @@ jobs:
     name: GoReleaser
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create GitHub release + upload assets
+      id-token: write   # cosign OIDC keyless signing
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0  # full history so GoReleaser can build the changelog
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
 
       # cosign for keyless artifact signing (OIDC, no long-lived key required)
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       # syft for SBOM generation
-      - uses: anchore/sbom-action/download-syft@v0
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
         with:
           distribution: goreleaser
           version: "~> v2"
@@ -66,8 +69,10 @@ jobs:
     name: Verify signature
     needs: goreleaser
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: sigstore/cosign-installer@v3
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Download release assets
         env:

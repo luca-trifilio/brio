@@ -8,16 +8,17 @@ on:
   pull_request:
     types: [opened, edited, reopened]  # title changes on edited, not on new commits
 
-permissions:
-  pull-requests: read
-  statuses: write
+permissions: read-all
 
 jobs:
   validate:
     name: PR title
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      statuses: write
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

@@ -13,19 +13,20 @@ name: Release Please
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write       # create tags & commits on the release PR
-  pull-requests: write  # open/update the Release PR
+permissions: read-all
 
 jobs:
   release-please:
     name: Release Please
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create tags & commits on the release PR
+      pull-requests: write  # open/update the Release PR
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name:        ${{ steps.rp.outputs.tag_name }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: rp
         with:
           token:         ${{ secrets.RELEASE_PLEASE_TOKEN }}

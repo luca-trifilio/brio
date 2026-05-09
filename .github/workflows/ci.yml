@@ -24,15 +24,15 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           version: latest
           args: --timeout=5m
@@ -46,9 +46,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
@@ -57,7 +57,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
         if: matrix.os == 'ubuntu-latest'
         with:
           files: coverage.txt
@@ -77,9 +77,9 @@ jobs:
           - { goos: linux,  goarch: amd64 }
           - { goos: linux,  goarch: arm64 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true

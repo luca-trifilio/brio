@@ -6,6 +6,10 @@ on:
     - cron: "30 8 * * 1"         # weekly, Monday 08:30 UTC
   push:
     branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
 
 permissions: read-all
 

@@ -5,22 +5,14 @@ on:
     branches: ["main"]
     paths-ignore:
       - "**.md"
-      - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
-      - "SECURITY.md"
-      - "CONTRIBUTING.md"
-      - "CHANGELOG.md"
   pull_request:
     branches: ["main"]
     paths-ignore:
       - "**.md"
-      - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
-      - "SECURITY.md"
-      - "CONTRIBUTING.md"
-      - "CHANGELOG.md"
 
 permissions:
   contents: read

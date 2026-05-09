@@ -2,14 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Skills & Docs
+
+Plugin: **`brio`** (luca-marketplace). Skills: dev-workflow, architecture, release-checklist, verify.  
+Private docs (roadmap, PRD, ADRs) live in the Obsidian vault at `60 - Progetti/brio/` — symlinked into `docs/` (gitignored).
+
 ## Project Overview
 
-**brio** is a vim-style TUI for Bruno API collections. It reads `.bru` files from disk, executes HTTP requests with variable interpolation and AWS SigV4 signing. **brio is read-only by design — it never writes to `.bru` files.**
+**brio** is a vim-style TUI for API collections. It loads collections via a plugin interface (`CollectionLoader`), executes HTTP requests with variable interpolation and AWS SigV4 signing. **brio is read-only by design — it never writes collection files.**
 
 ## Build & Test Commands
 
 ```sh
-make setup      # Install dev tools (goimports, golangci-lint) + wire lefthook git hooks
+make setup      # Install go tools (goimports, golangci-lint) + lefthook hooks (goreleaser/cosign/gh via brew)
 make build      # Compile binary → ./brio
 make run ARGS="<args>"  # Build and run with arguments
 make check      # Full QA: fmt + vet + lint + test (run before committing)
@@ -74,7 +79,8 @@ Rules:
 ## Architecture
 
 - **TUI:** Bubble Tea (Elm-inspired state machine). Multi-pane: tree, request, response, env, vars, history, help, settings. Vim-style keybindings (normal/insert/command modes).
-- **Parser:** Custom `.bru` file parser — best-effort loading (one file failure doesn't abort the collection).
+- **Plugin loader:** `CollectionLoader` interface in `internal/plugins`. Bruno loader wraps the existing parser; Postman loader in progress. `AutodetectLoader` opt-in for scanning known config paths.
+- **Canonical model:** `internal/canonical` — format-agnostic `Collection`, `Folder`, `Request`, `Scripts`, `AuthBlock`, `Diagnostic`. All loaders map to this model.
 - **Variable interpolation:** Layered scoping — collection → environment → folder chain → request → runtime overrides. Supports cycle detection.
 - **AWS SigV4:** Full inheritance chain (request → folder → collection).
 - **Credential hooks:** Trigger-based refresh (status code / regex body / env tier). Supports dotenv, json, yaml, bruno-env output formats.

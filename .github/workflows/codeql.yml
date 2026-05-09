@@ -3,9 +3,17 @@ name: CodeQL
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
   pull_request:
     branches: ["main"]
     types: [opened, reopened]  # skip re-runs on every commit push
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
   schedule:
     - cron: "23 8 * * 1"  # weekly, Monday 08:23 UTC (staggered to reduce load)
 
